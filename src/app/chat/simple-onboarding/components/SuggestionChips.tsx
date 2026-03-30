@@ -52,11 +52,11 @@ export default function SuggestionChips({
       </button>
 
       <button
-        onClick={() => onSendMessage("Scan this codebase and generate a comprehensive CLAUDE.md file covering the tech stack, architecture, key patterns, build commands, and important rules.")}
+        onClick={() => onSendMessage("Scan this codebase and generate comprehensive documentation covering the tech stack, architecture, key patterns, build commands, and important rules.")}
         className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] border border-white/[0.08] rounded-lg text-xs text-slate-400 hover:text-white hover:border-white/[0.15] transition-all"
       >
         <span>📄</span>
-        Generate CLAUDE.md
+        Generate Docs
       </button>
 
       <button
@@ -68,7 +68,7 @@ export default function SuggestionChips({
       </button>
 
       <button
-        onClick={() => onSendMessage("Generate workflow documentation files: SAFETY_RULES.md, QUICK_START.md, CODE_PATTERNS.md, and .claude/rules/ files based on the patterns you find in this codebase.")}
+        onClick={() => onSendMessage("Generate workflow documentation files: SAFETY_RULES.md, QUICK_START.md, CODE_PATTERNS.md, and rules files based on the patterns you find in this codebase.")}
         className="flex items-center gap-1.5 px-3 py-1.5 bg-white/[0.04] border border-white/[0.08] rounded-lg text-xs text-slate-400 hover:text-white hover:border-white/[0.15] transition-all"
       >
         <span>📂</span>

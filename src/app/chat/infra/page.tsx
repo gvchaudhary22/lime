@@ -131,7 +131,7 @@ export default function InfraPropagationPage() {
                 Infrastructure Propagation
               </h1>
               <p className="text-gray-400 text-sm mt-1">
-                Manage Claude infrastructure template versions and propagate
+                Manage AI infrastructure template versions and propagate
                 updates to onboarded repositories
               </p>
             </div>

@@ -91,7 +91,7 @@ function ModulePageContent() {
     if (filesRes.success && filesRes.data) {
       setModuleFiles(filesRes.data.filter(f =>
         f.relative_path.endsWith(".md") &&
-        (f.relative_path.includes(modulePath) || f.relative_path.includes(`.claude/docs/modules/${moduleName}`))
+        (f.relative_path.includes(modulePath) || f.relative_path.includes(`.mars/docs/modules/${moduleName}`))
       ));
     }
     if (modulesRes.success && modulesRes.data) {
@@ -125,7 +125,7 @@ function ModulePageContent() {
     setChatMessages([]);
     setChatResult("");
 
-    // Phase 1: Team + Context — no Claude call, just show UI
+    // Phase 1: Team + Context — no AI call, just show UI
     if (round === 1) {
       setChatLoading(false);
       setChatQuestions("");
@@ -380,7 +380,7 @@ function ModulePageContent() {
               disabled={moduleAutoScanning}
               onClick={async () => {
                 setModuleAutoScanning(true);
-                setChatMessages(prev => [...prev, { role: "assistant", content: "🤖 **Auto-scanning module...** Reading code, extracting dimensions, scoring with Claude. This takes 2-3 minutes." }]);
+                setChatMessages(prev => [...prev, { role: "assistant", content: "🤖 **Auto-scanning module...** Reading code, extracting dimensions, scoring with AI. This takes 2-3 minutes." }]);
                 try {
                   const res = await api.autoScanModule({ repository_id: repoId, module_path: modulePath });
                   if (res.success && res.data) {
@@ -488,7 +488,7 @@ function ModulePageContent() {
                         } else if (event.type === "dimension_done") {
                           setChatMessages(prev => [...prev, { role: "assistant", content: event.message || `✓ ${event.dimension} done` }]);
                         } else if (event.type === "scoring") {
-                          setChatMessages(prev => [...prev, { role: "assistant", content: "🧠 " + (event.message || "Claude is scoring...") }]);
+                          setChatMessages(prev => [...prev, { role: "assistant", content: "🧠 " + (event.message || "AI is scoring...") }]);
                         } else if (event.type === "complete") {
                           const reviewItems = event.needs_review || [];
                           setChatMessages(prev => [...prev, {
@@ -519,7 +519,7 @@ function ModulePageContent() {
                 )}
                 <div className="text-left">
                   <span className="text-xs font-medium text-white block">{moduleAutoScanning ? "Auto-scanning..." : "Auto-Onboard Module"}</span>
-                  <span className="text-[9px] text-slate-400">AI scans code, extracts all dimensions, scores with Claude</span>
+                  <span className="text-[9px] text-slate-400">AI scans code, extracts all dimensions, and scores</span>
                 </div>
               </button>
               )}
@@ -599,7 +599,7 @@ function ModulePageContent() {
                   </span>
                   {activePhase && activePhase >= 2 && (
                     <span className="text-[10px] text-purple-400/60">
-                      Claude Scan — {chatRounds.find(r => r.round === activePhase)?.title || "Module Deep-Dive"}
+                      AI Scan — {chatRounds.find(r => r.round === activePhase)?.title || "Module Deep-Dive"}
                     </span>
                   )}
                   <div className="flex items-center gap-1 bg-white/[0.03] rounded-lg p-0.5">
@@ -788,7 +788,7 @@ function ModulePageContent() {
               {chatLoading && (
                 <div className="flex items-center gap-3 py-4 text-slate-300">
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  <span className="text-sm">Claude is analyzing...</span>
+                  <span className="text-sm">AI is analyzing...</span>
                 </div>
               )}
 
@@ -799,7 +799,7 @@ function ModulePageContent() {
                   }`}>
                     {msg.role === "assistant" && viewMode === "detailed" && (
                       <div className="text-[9px] text-slate-500 mb-2 pb-2 border-b border-white/[0.04]">
-                        <span className="text-purple-400">AI Processing:</span> Read .claude/docs/modules/{moduleName}/context.md → Scanned module code → Cross-referenced findings
+                        <span className="text-purple-400">AI Processing:</span> Read .mars/docs/modules/{moduleName}/context.md → Scanned module code → Cross-referenced findings
                       </div>
                     )}
                     <pre className="whitespace-pre-wrap leading-relaxed font-sans">{msg.content}</pre>

@@ -203,6 +203,7 @@ export default function Sidebar({ activePage = "chats" }: SidebarProps) {
     { icon: Clock, label: "Jobs", href: "/chat/admin/jobs", id: "admin-jobs" },
     { icon: Brain, label: "AI Training", href: "/chat/admin/ai-training", id: "admin-ai-training" },
     { icon: GitBranch, label: "KB Updates", href: "/chat/admin/kb-updates", id: "admin-kb-updates" },
+    { icon: Zap, label: "Cosmos AI", href: "/chat/admin/cosmos-settings", id: "admin-cosmos-settings" },
   ];
 
   return (

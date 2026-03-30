@@ -214,13 +214,22 @@ export default function AITrainingPage() {
                 </p>
               </div>
             </div>
-            <button
-              onClick={fetchStats}
-              className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.05] text-slate-300 hover:text-white hover:bg-white/[0.1] transition-colors text-sm"
-            >
-              <RefreshCw className="w-4 h-4" />
-              Refresh
-            </button>
+            <div className="flex items-center gap-2">
+              <a
+                href="/chat/admin/ai-training/simulation"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30 text-yellow-300 hover:text-yellow-200 text-sm"
+              >
+                <Zap className="w-4 h-4" />
+                Simulation
+              </a>
+              <button
+                onClick={fetchStats}
+                className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.05] text-slate-300 hover:text-white hover:bg-white/[0.1] transition-colors text-sm"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Refresh
+              </button>
+            </div>
           </div>
 
           {/* Error Banner */}

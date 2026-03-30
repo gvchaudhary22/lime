@@ -312,9 +312,9 @@ describe("TierBadge", () => {
     expect(container.firstChild).toBeNull();
   });
 
-  it("renders Claude badge for stage='claude'", () => {
-    render(<TierBadge stage="claude" />);
-    expect(screen.getByText("Claude")).toBeInTheDocument();
+  it("renders MARS AI badge for stage='primary'", () => {
+    render(<TierBadge stage="primary" />);
+    expect(screen.getByText("MARS AI")).toBeInTheDocument();
   });
 
   it("renders AI Gateway badge for stage='ai_gateway'", () => {

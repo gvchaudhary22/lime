@@ -87,9 +87,9 @@ describe("streamChat", () => {
     mockFetch.mockResolvedValue({
       ok: true,
       body: createReadableStream([
-        'data: {"type":"tier","tier":"claude"}',
+        'data: {"type":"tier","tier":"primary"}',
         'data: {"type":"assistant","text":"Analysis..."}',
-        'data: {"type":"done","message_id":"msg-1","stage":"claude","session_id":"sess-1"}',
+        'data: {"type":"done","message_id":"msg-1","stage":"primary","session_id":"sess-1"}',
       ]),
     });
 
@@ -99,8 +99,8 @@ describe("streamChat", () => {
     });
 
     expect(chunks[0].type).toBe("tier");
-    expect(chunks[0].tier).toBe("claude");
-    expect(chunks[2].stage).toBe("claude");
+    expect(chunks[0].tier).toBe("primary");
+    expect(chunks[2].stage).toBe("primary");
     expect(chunks[2].session_id).toBe("sess-1");
   });
 

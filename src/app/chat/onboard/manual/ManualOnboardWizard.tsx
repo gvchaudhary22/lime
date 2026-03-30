@@ -421,7 +421,7 @@ export default function ManualOnboardWizard() {
                     className="w-full px-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-sky-500/50"
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    The server where Claude CLI is installed for runtime task execution
+                    The server where MARS CLI is installed for runtime task execution
                   </p>
                 </div>
               </div>
@@ -517,7 +517,7 @@ export default function ManualOnboardWizard() {
               <div>
                 <h2 className="text-lg font-semibold text-white mb-1">Code Analysis</h2>
                 <p className="text-sm text-gray-400">
-                  MARS will clone your repository and analyze it with Claude AI to detect language, framework, and architecture
+                  MARS will clone your repository and analyze it with AI to detect language, framework, and architecture
                 </p>
               </div>
 
@@ -673,7 +673,7 @@ export default function ManualOnboardWizard() {
               <div>
                 <h2 className="text-lg font-semibold text-white mb-1">Agent Roles</h2>
                 <p className="text-sm text-gray-400">
-                  Select which Claude agent roles to enable. Disabled roles will be commented out and can be re-enabled later.
+                  Select which AI agent roles to enable. Disabled roles will be commented out and can be re-enabled later.
                 </p>
               </div>
 
@@ -757,7 +757,7 @@ export default function ManualOnboardWizard() {
               <div>
                 <h2 className="text-lg font-semibold text-white mb-1">Generate &amp; Push</h2>
                 <p className="text-sm text-gray-400">
-                  MARS will generate the Claude infrastructure, marsbuilder task API, and push to the QA branch
+                  MARS will generate the AI infrastructure, marsbuilder task API, and push to the QA branch
                 </p>
               </div>
 

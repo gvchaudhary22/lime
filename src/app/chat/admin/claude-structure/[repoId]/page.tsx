@@ -26,7 +26,7 @@ interface FileNode {
   size?: number;
 }
 
-export default function ClaudeStructurePage() {
+export default function StructureViewerPage() {
   const router = useRouter();
   const params = useParams();
   const repoId = params.repoId as string;
@@ -49,7 +49,7 @@ export default function ClaudeStructurePage() {
   const loadStructure = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.getClaudeStructure(repoId);
+      const res = await api.getAgentStructure(repoId);
       if (res.success && res.data) {
         setTree((res.data.tree || []) as FileNode[]);
         setRepoName(res.data.repo_name || repoId);
@@ -86,7 +86,7 @@ export default function ClaudeStructurePage() {
     setFileLoading(true);
     setFileContent("");
     try {
-      const res = await api.getClaudeFile(repoId, path);
+      const res = await api.getAgentFile(repoId, path);
       if (res.success && res.data) {
         setFileContent(res.data.content || "");
       }
@@ -188,7 +188,7 @@ export default function ClaudeStructurePage() {
               <ArrowLeft className="w-3.5 h-3.5" />
               Back
             </button>
-            <h1 className="text-lg font-bold text-white">.claude/ Structure</h1>
+            <h1 className="text-lg font-bold text-white">Agent Structure</h1>
             <p className="text-xs text-zinc-500 mt-1">{repoName}</p>
           </div>
 
@@ -200,7 +200,7 @@ export default function ClaudeStructurePage() {
               </div>
             ) : tree.length === 0 ? (
               <div className="text-center py-12 text-zinc-500 text-sm">
-                No .claude/ directory found
+                No agent directory found
               </div>
             ) : (
               tree.map((node) => renderNode(node))

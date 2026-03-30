@@ -6,7 +6,7 @@ import { Repository } from "@/lib/api";
 const ONBOARDING_STAGES = [
   { key: "cloned", label: "Cloned", description: "Repository cloned to MARS server" },
   { key: "analyzed", label: "Analyzed", description: "Language, framework, modules detected" },
-  { key: "templates", label: "Templates", description: "Task API & .claude config pushed" },
+  { key: "templates", label: "Templates", description: "Task API & agent config pushed" },
   { key: "elk", label: "ELK Config", description: "ELK dashboard URLs configured" },
   { key: "deployed", label: "Deployed", description: "QA branch deployed & verified" },
   { key: "enriched", label: "Enriched", description: "Knowledge enriched via chat" },

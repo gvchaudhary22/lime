@@ -41,10 +41,10 @@ export default function AgentGenerationPanel({ repoId, onAgentsGenerated }: Agen
 
   // Scoring
   const [showScores, setShowScores] = useState(false);
-  const [claudeScores, setClaudeScores] = useState<ScoreItem[]>([]);
+  const [aiScores, setClaudeScores] = useState<ScoreItem[]>([]);
   const [marsScores, setMarsScores] = useState<ScoreItem[]>([]);
-  const [claudeTotal, setClaudeTotal] = useState(0);
-  const [claudeMax, setClaudeMax] = useState(0);
+  const [aiTotal, setClaudeTotal] = useState(0);
+  const [aiMax, setClaudeMax] = useState(0);
   const [marsTotal, setMarsTotal] = useState(0);
   const [marsMax, setMarsMax] = useState(0);
   const [scoringLoading, setScoringLoading] = useState(false);
@@ -299,7 +299,7 @@ export default function AgentGenerationPanel({ repoId, onAgentsGenerated }: Agen
             </div>
             <div className="flex gap-2">
               <button
-                onClick={() => window.open(`/chat/admin/claude-structure/${repoId}`, "_blank")}
+                onClick={() => window.open(`/chat/admin/agent-structure/${repoId}`, "_blank")}
                 className="px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 text-xs rounded-md transition-colors"
               >
                 View Structure
@@ -328,9 +328,9 @@ export default function AgentGenerationPanel({ repoId, onAgentsGenerated }: Agen
             {/* Score Summary */}
             <div className="grid grid-cols-2 gap-3">
               <div className="p-4 rounded-lg bg-gradient-to-br from-purple-900/30 to-slate-800/50 border border-purple-500/20 text-center">
-                <div className="text-3xl font-bold text-purple-300">{claudeTotal}<span className="text-lg text-purple-500">/{claudeMax || 120}</span></div>
-                <div className="text-xs text-purple-400 mt-1">Claude Perspective</div>
-                <div className="text-[10px] text-slate-500">How well Claude can work here</div>
+                <div className="text-3xl font-bold text-purple-300">{aiTotal}<span className="text-lg text-purple-500">/{aiMax || 120}</span></div>
+                <div className="text-xs text-purple-400 mt-1">AI Perspective</div>
+                <div className="text-[10px] text-slate-500">How well AI can work here</div>
               </div>
               <div className="p-4 rounded-lg bg-gradient-to-br from-blue-900/30 to-slate-800/50 border border-blue-500/20 text-center">
                 <div className="text-3xl font-bold text-blue-300">{marsTotal}<span className="text-lg text-blue-500">/{marsMax || 100}</span></div>
@@ -339,11 +339,11 @@ export default function AgentGenerationPanel({ repoId, onAgentsGenerated }: Agen
               </div>
             </div>
 
-            {/* Claude Score Breakdown */}
+            {/* AI Score Breakdown */}
             <div className="p-4 rounded-lg bg-slate-800/50 border border-purple-700/20">
-              <div className="text-purple-400 text-sm font-medium mb-3">Claude Perspective — {claudeTotal}/120</div>
+              <div className="text-purple-400 text-sm font-medium mb-3">AI Perspective — {aiTotal}/120</div>
               <div className="space-y-1.5">
-                {claudeScores.map((s, i) => (
+                {aiScores.map((s, i) => (
                   <div key={i} className="flex items-center gap-2 text-xs">
                     <div className="w-48 text-slate-400 truncate">{s.criteria}</div>
                     <div className="flex-1 h-1.5 bg-slate-700 rounded-full overflow-hidden">
@@ -381,7 +381,7 @@ export default function AgentGenerationPanel({ repoId, onAgentsGenerated }: Agen
             <div className="p-4 rounded-lg bg-slate-800/50 border border-amber-700/20">
               <div className="text-amber-400 text-sm font-medium mb-2">How to Improve</div>
               <ul className="text-xs text-slate-400 space-y-1.5">
-                {claudeScores.filter(s => s.score < s.max * 0.8).map((s, i) => (
+                {aiScores.filter(s => s.score < s.max * 0.8).map((s, i) => (
                   <li key={i} className="flex items-start gap-2">
                     <span className="text-amber-500 mt-0.5">→</span>
                     <span><strong className="text-slate-300">{s.criteria}</strong> ({s.score}/{s.max}): {s.notes}</span>

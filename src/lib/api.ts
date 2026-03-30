@@ -2293,13 +2293,13 @@ export const api = {
       body: JSON.stringify(data),
     }),
 
-  // --- Claude Structure Viewer ---
+  // --- Structure Viewer ---
 
-  getClaudeStructure: (repoId: string) =>
-    request<{ repo_name: string; tree: Array<{ name: string; path: string; type: string; children?: unknown[] }> }>(`/api/v1/repositories/${repoId}/claude-structure`),
+  getAgentStructure: (repoId: string) =>
+    request<{ repo_name: string; tree: Array<{ name: string; path: string; type: string; children?: unknown[] }> }>(`/api/v1/repositories/${repoId}/agent-structure`),
 
-  getClaudeFile: (repoId: string, filePath: string) =>
-    request<{ content: string }>(`/api/v1/repositories/${repoId}/claude-file?path=${encodeURIComponent(filePath)}`),
+  getAgentFile: (repoId: string, filePath: string) =>
+    request<{ content: string }>(`/api/v1/repositories/${repoId}/agent-file?path=${encodeURIComponent(filePath)}`),
 
   // --- Agent Builder (Custom Artifacts + Deployments) ---
 
@@ -2370,6 +2370,25 @@ export const api = {
     request<KBSyncResult>(`/api/v1/repositories/${repoId}/kb-sync/apply`, {
       method: "POST",
       body: JSON.stringify({ github_token: githubToken }),
+    }),
+
+  // --- Cosmos AI Workflow Settings ---
+
+  getCosmosSettings: (orgId?: string) => {
+    const qs = orgId ? `?org_id=${encodeURIComponent(orgId)}` : "";
+    return request<CosmosWorkflowSettings>(`/api/v1/settings/cosmos${qs}`);
+  },
+
+  updateCosmosSettings: (settings: CosmosWorkflowSettings) =>
+    request<CosmosWorkflowSettings>("/api/v1/settings/cosmos", {
+      method: "PUT",
+      body: JSON.stringify(settings),
+    }),
+
+  applyCosmosPreset: (preset: "max_quality" | "balanced" | "cost_optimized", orgId?: string) =>
+    request<CosmosWorkflowSettings>("/api/v1/settings/cosmos/preset", {
+      method: "POST",
+      body: JSON.stringify({ preset, org_id: orgId }),
     }),
 
 };
@@ -2625,4 +2644,36 @@ export interface KBSyncStatus {
   last_kb_sync_at: string | null;
   last_kb_sync_sha: string;
   kb_last_trained_at: string | null;
+}
+
+// --- Cosmos AI Workflow Settings ---
+
+export interface CosmosWorkflowSettings {
+  id?: string;
+  org_id?: string | null;
+  quality_mode: "max_quality" | "balanced" | "cost_optimized";
+  force_complex: boolean;
+  model_preference: "auto" | "opus" | "sonnet" | "haiku";
+  ignore_cost_budget: boolean;
+  wave1_confidence_threshold: number;
+  tier1_respond_threshold: number;
+  probe_timeout_sec: number;
+  deep_timeout_sec: number;
+  pipeline1_enabled: boolean;
+  pipeline2_enabled: boolean;
+  pipeline3_enabled: boolean;
+  pipeline4_enabled: boolean;
+  pipeline5_enabled: boolean;
+  enable_ralph: boolean;
+  enable_riper: boolean;
+  enable_hyde: boolean;
+  max_context_tokens: number;
+  // Wave 3: LangGraph stateful reasoning
+  wave3_langgraph_enabled?: boolean;
+  wave3_max_iterations?: number;
+  wave3_timeout_sec?: number;
+  // Wave 4: Neo4j targeted graph traversal
+  wave4_neo4j_enabled?: boolean;
+  wave4_max_depth?: number;
+  wave4_timeout_sec?: number;
 }

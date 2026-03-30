@@ -497,7 +497,7 @@ function DeployTab() {
       description: deployDesc,
       artifact_ids: selectedArtifacts,
       target_repo_ids: selectedRepos,
-      target_platforms: ["claude"],
+      target_platforms: ["mars_ai"],
     });
     if (res.success && res.data) {
       setDeployment(res.data);

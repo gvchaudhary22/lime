@@ -13,9 +13,9 @@ describe("TierBadge", () => {
     expect(container.innerHTML).toBe("");
   });
 
-  it("renders Claude badge for claude stage", () => {
-    render(<TierBadge stage="claude" />);
-    expect(screen.getByText("Claude")).toBeInTheDocument();
+  it("renders MARS AI badge for primary stage", () => {
+    render(<TierBadge stage="primary" />);
+    expect(screen.getByText("MARS AI")).toBeInTheDocument();
   });
 
   it("renders AI Gateway badge for ai_gateway stage", () => {
@@ -28,9 +28,9 @@ describe("TierBadge", () => {
     expect(screen.getByText("AI Gateway")).toBeInTheDocument();
   });
 
-  it("applies orange styling for Claude", () => {
-    render(<TierBadge stage="claude" />);
-    const badge = screen.getByText("Claude");
+  it("applies orange styling for primary AI tier", () => {
+    render(<TierBadge stage="primary" />);
+    const badge = screen.getByText("MARS AI");
     expect(badge.className).toContain("orange");
   });
 

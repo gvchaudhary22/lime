@@ -202,7 +202,7 @@ export default function ConversationPage() {
               return updated;
             });
           } else if (chunk.type === "assistant" && chunk.text) {
-            // Claude assistant text content
+            // AI assistant text content
             setMessages((prev) => {
               const updated = [...prev];
               const lastMsg = updated[updated.length - 1];
@@ -215,7 +215,7 @@ export default function ConversationPage() {
               return updated;
             });
           } else if (chunk.type === "tool_use") {
-            // Claude is using a tool — add to tool steps
+            // AI is using a tool — add to tool steps
             setMessages((prev) => {
               const updated = [...prev];
               const lastMsg = updated[updated.length - 1];
@@ -375,11 +375,11 @@ export default function ConversationPage() {
   };
 
   const handleActionComplete = (action: string) => {
-    // Update the last Claude message to show the action taken
+    // Update the last AI message to show the action taken
     setMessages((prev) => {
       const updated = [...prev];
       for (let i = updated.length - 1; i >= 0; i--) {
-        if (updated[i].role === "assistant" && updated[i].stage === "claude" && !updated[i].actionTaken) {
+        if (updated[i].role === "assistant" && updated[i].stage === "primary" && !updated[i].actionTaken) {
           updated[i] = { ...updated[i], actionTaken: action };
           break;
         }
@@ -476,7 +476,7 @@ export default function ConversationPage() {
   };
 
   const renderMessageContent = (msg: DisplayMessage) => {
-    // Use markdown rendering for assistant messages (especially Claude tier)
+    // Use markdown rendering for assistant messages
     if (msg.role === "assistant" && msg.content && !msg.isStreaming) {
       return (
         <>
@@ -500,7 +500,7 @@ export default function ConversationPage() {
             </span>
           )}
           {msg.isStreaming && (msg.content || msg.toolSteps?.length) && !msg.content && (
-            <span className="text-xs text-slate-500 animate-pulse">Claude is working...</span>
+            <span className="text-xs text-slate-500 animate-pulse">AI is working...</span>
           )}
           {msg.isStreaming && msg.content && (
             <span className="inline-block w-2 h-4 bg-purple-400 ml-0.5 animate-pulse" />
@@ -622,7 +622,7 @@ export default function ConversationPage() {
                   className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                     msg.role === "user"
                       ? "bg-purple-600"
-                      : msg.stage === "claude"
+                      : msg.stage === "primary"
                       ? "bg-gradient-to-br from-orange-400 to-amber-600"
                       : "bg-gradient-to-br from-purple-400 to-violet-600"
                   }`}

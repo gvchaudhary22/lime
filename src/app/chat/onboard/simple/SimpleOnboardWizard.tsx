@@ -541,7 +541,7 @@ export default function SimpleOnboardWizard({ onComplete }: SimpleOnboardWizardP
             </p>
             {pipelineStatus === "phase1_complete" && (
               <p className="text-xs text-green-400/70 ml-8 mt-1">
-                Templates copied, CLAUDE.md generated, pushed to QA branch
+                Templates copied, docs generated, pushed to QA branch
               </p>
             )}
           </div>

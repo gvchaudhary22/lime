@@ -335,7 +335,7 @@ export default function SimpleOnboardingPage() {
         {msg.role === "user" ? <User className="w-4 h-4 text-white" /> : <Bot className="w-4 h-4 text-white" />}
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-xs text-slate-500 mb-1.5 font-medium">{msg.role === "user" ? "You" : "Claude"}</div>
+        <div className="text-xs text-slate-500 mb-1.5 font-medium">{msg.role === "user" ? "You" : "MARS AI"}</div>
         {msg.role === "assistant" ? (
           <div>
             {renderToolSteps(msg, i)}
@@ -352,7 +352,7 @@ export default function SimpleOnboardingPage() {
                   </span>
                 )}
                 {msg.isStreaming && msg.content && <span className="inline-block w-2 h-4 bg-purple-400 ml-0.5 animate-pulse" />}
-                {msg.isStreaming && msg.toolSteps?.length && !msg.content && <span className="text-xs text-slate-500 animate-pulse">Claude is working...</span>}
+                {msg.isStreaming && msg.toolSteps?.length && !msg.content && <span className="text-xs text-slate-500 animate-pulse">AI is working...</span>}
               </div>
             )}
           </div>
@@ -539,7 +539,7 @@ export default function SimpleOnboardingPage() {
                         <p className="text-sm text-slate-400 mb-6">Tell me about <span className="text-purple-300">{selectedModuleDetail.name}</span> module</p>
                         {renderSuggestionCards([
                           { title: "Scan this module", desc: "Understand structure, patterns, and key files" },
-                          { title: "Generate module docs", desc: "Create CLAUDE.md for this module" },
+                          { title: "Generate module docs", desc: "Create documentation for this module" },
                           { title: "Map dependencies", desc: "Find external services and integrations" },
                           { title: "Review test coverage", desc: "Check what tests exist and what's missing" },
                         ], `${selectedModuleDetail.name} module at path ${selectedModuleDetail.path}`)}
@@ -677,7 +677,7 @@ export default function SimpleOnboardingPage() {
                         <p className="text-sm text-slate-400 mb-6">How can I help with <span className="text-purple-300">{selectedRepo.name}</span>?</p>
                         {renderSuggestionCards([
                           { title: "Scan the codebase", desc: "Understand tech stack, modules, and patterns" },
-                          { title: "Generate CLAUDE.md", desc: "Create comprehensive project documentation" },
+                          { title: "Generate docs", desc: "Create comprehensive project documentation" },
                           { title: "Setup workflow files", desc: "Generate safety rules, code patterns, test strategy" },
                           { title: "Map API endpoints", desc: "Discover and document all HTTP routes" },
                         ], selectedRepo.name)}

@@ -258,9 +258,9 @@ export default function ChatBox({
             <div className="w-12 h-12 rounded-full bg-purple-500/10 flex items-center justify-center mx-auto mb-3">
               <Send className="w-5 h-5 text-purple-400" />
             </div>
-            <p className="text-sm text-slate-400">Start a conversation with Claude</p>
+            <p className="text-sm text-slate-400">Start a conversation with MARS AI</p>
             <p className="text-xs text-slate-500 mt-1">
-              Ask Claude to scan your codebase, generate workflow files, or help build CLAUDE.md
+              Ask MARS AI to scan your codebase, generate workflow files, or build documentation
             </p>
           </div>
         )}
@@ -320,7 +320,7 @@ export default function ChatBox({
                 handleSend();
               }
             }}
-            placeholder="Ask Claude about your codebase... (Cmd+Enter to send)"
+            placeholder="Ask about your codebase... (Cmd+Enter to send)"
             rows={3}
             disabled={streaming}
             className="flex-1 bg-white/[0.05] border border-white/[0.1] rounded-xl px-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-purple-500/30 resize-none disabled:opacity-50"

@@ -3,9 +3,9 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 export interface StreamChunk {
   // Mars internal events
   type: "tier" | "done" | "error" |
-    // Events from shiprocket-channels Claude API
+    // Events from shiprocket-channels AI API
     "system" | "assistant" | "tool_use" | "tool_result" | "result" |
-    // Keep-alive during long Claude tasks
+    // Keep-alive during long AI tasks
     "heartbeat";
 
   // Mars fields
@@ -208,7 +208,7 @@ export async function streamOnboardingProgress(
 
 /**
  * Streams answer submission for module onboarding.
- * Used for Phase 2+ where guide/correct answers trigger Claude rescans.
+ * Used for Phase 2+ where guide/correct answers trigger AI rescans.
  */
 export async function streamAnswerSubmit(
   data: { repository_id: string; round: number; answers: string; session_id?: string; module_path?: string },
@@ -354,7 +354,7 @@ export interface AutoScanEvent {
 /**
  * Streams free-form chat via SSE.
  * Uses POST to /api/v1/onboarding/simple/chat/free/stream.
- * User sends instructions, Claude processes against repo codebase.
+ * User sends instructions, AI processes against repo codebase.
  */
 export async function streamFreeFormChat(
   data: { repository_id: string; message: string; session_id?: string },

@@ -193,7 +193,7 @@ function OnboardContent() {
       <div className="border-b border-white/10 px-6 py-4">
         <h1 className="text-xl font-semibold text-white">Auto-Onboard Repository</h1>
         <p className="text-sm text-gray-400 mt-1">
-          Connect your GitHub or paste a repo URL to let MARS analyze it with Claude AI
+          Connect your GitHub or paste a repo URL to let MARS analyze it with AI
         </p>
       </div>
 

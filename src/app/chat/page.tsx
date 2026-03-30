@@ -379,7 +379,7 @@ export default function ChatPage() {
                 <span className="text-xs text-slate-500">Platform:</span>
                 {[
                   { value: "", label: "Default" },
-                  { value: "claude", label: "Claude" },
+                  { value: "primary", label: "MARS AI" },
                   { value: "codex", label: "Codex" },
                 ].map((p) => (
                   <button

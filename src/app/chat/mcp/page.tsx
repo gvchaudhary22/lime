@@ -278,8 +278,8 @@ export default function MCPChatPage() {
                 <Bot className="w-12 h-12 text-purple-400/30 mb-4" />
                 <h2 className="text-xl font-semibold text-white mb-2">MCP Chat</h2>
                 <p className="text-sm text-zinc-500 max-w-md">
-                  Chat with Claude Code through MARS. Describe any task — MARS auto-detects the right repo,
-                  Claude reads the codebase and helps you fix bugs, add features, or investigate issues.
+                  Chat with MARS AI. Describe any task — MARS auto-detects the right repo,
+                  reads the codebase and helps you fix bugs, add features, or investigate issues.
                 </p>
                 <button
                   onClick={createSession}
