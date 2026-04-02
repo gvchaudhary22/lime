@@ -90,8 +90,8 @@ export default function TrainingPage() {
 
   useEffect(() => {
     fetchStats();
-    const interval = setInterval(fetchStats, 15000);
-    return () => clearInterval(interval);
+    // Disabled auto-polling — status endpoint reads 36K files and blocks COSMOS workers.
+    // Click "Refresh" button manually to check stats.
   }, [fetchStats]);
 
   const runPipeline = async (endpoint: string, label: string) => {
