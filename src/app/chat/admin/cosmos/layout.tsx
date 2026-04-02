@@ -4,13 +4,14 @@ import { usePathname, useRouter } from "next/navigation";
 import Sidebar from "@/components/layout/Sidebar";
 import {
   Brain, Zap, Search, Bot, Settings, Code2, ClipboardCheck,
-  BarChart3, Gauge, Star,
+  BarChart3, Gauge, Star, ShieldAlert,
 } from "lucide-react";
 
 const tabs = [
   { icon: Brain, label: "Training", href: "/chat/admin/cosmos/training" },
   { icon: Zap, label: "Simulation", href: "/chat/admin/cosmos/simulation" },
   { icon: Search, label: "Query Traces", href: "/chat/admin/cosmos/traces" },
+  { icon: ShieldAlert, label: "Quality", href: "/chat/admin/cosmos/quality" },
   { icon: Bot, label: "Agents", href: "/chat/admin/cosmos/agents" },
   { icon: Settings, label: "Tools", href: "/chat/admin/cosmos/registry/tools" },
   { icon: Code2, label: "Skills", href: "/chat/admin/cosmos/registry/skills" },

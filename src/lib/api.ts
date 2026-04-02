@@ -2521,6 +2521,33 @@ export const api = {
       { method: "DELETE" }
     ),
 
+  // -------------------------------------------------------------------------
+  // COSMOS Simulation + Observability (v22.0)
+  // -------------------------------------------------------------------------
+
+  runSimulation: (data: { message: string; company_id?: string; mode?: string; overrides?: object }) =>
+    request<SimulationResult>("/api/v1/admin/cosmos/simulate", {
+      method: "POST",
+      body: JSON.stringify({ ...data, metadata: { simulation: true } }),
+    }),
+
+  diagnoseQuery: (data: DiagnoseRequest) =>
+    request<DiagnosisResult>("/api/v1/admin/cosmos/diagnose", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  getChatQuality: (filters?: { bucket?: string; limit?: number }) =>
+    request<ChatQualityResponse>(
+      `/api/v1/admin/cosmos/chat-quality${filters?.bucket ? `?bucket=${filters.bucket}` : ""}${filters?.limit ? `&limit=${filters.limit}` : ""}`
+    ),
+
+  submitTrainingFeedback: (data: TrainingFeedbackRequest) =>
+    request<TrainingFeedbackResponse>("/api/v1/admin/cosmos/training-feedback", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
 };
 
 // --- Agent Generation Types (v25.0) ---
@@ -2905,4 +2932,115 @@ export interface CosmosWorkflowSettings {
   wave4_neo4j_enabled?: boolean;
   wave4_max_depth?: number;
   wave4_timeout_sec?: number;
+}
+
+// =============================================================================
+// COSMOS Observability + AI Diagnostic + Chat Quality (v22.0)
+// Kafka topic: stage-cosmos-query-trace
+// =============================================================================
+
+// --- Simulation ---
+
+export interface SimWaveResult {
+  name: string;
+  status: "idle" | "running" | "done" | "error" | "skipped";
+  latency_ms?: number;
+  data?: Record<string, unknown>;
+  summary?: string;
+}
+
+export interface SimulationResult {
+  query: string;
+  final_response: string;
+  confidence: number;
+  total_latency_ms: number;
+  waves: SimWaveResult[];
+  tools_used: string[];
+  agent_chain?: string[];
+  guardrails_pre: number;
+  guardrails_post: number;
+  pattern_hit: boolean;
+  timestamp: string;
+  raw_debug?: Record<string, unknown>;
+}
+
+// --- AI Diagnostic ---
+
+export interface DiagnoseRequest {
+  query: string;
+  wave_trace: SimWaveResult[];
+  final_response?: string;
+  expected_response?: string;
+  conversation_id?: string;
+}
+
+export interface DiagnosticRecommendation {
+  area: "knowledge_base" | "embedding" | "wave_config" | "chunking" | "graph";
+  description: string;
+  priority: "high" | "medium" | "low";
+}
+
+export interface FixAction {
+  action: "add_kb_doc" | "re_embed" | "adjust_threshold" | "add_negative_example" | "add_entity_hub";
+  target: string;
+  reason: string;
+}
+
+export interface DiagnosisResult {
+  query_id: string;
+  root_cause: string;
+  category: "kb_missing" | "embedding_poor" | "threshold_misconfigured" | "technique_failure" | "correct" | "partial";
+  failed_wave?: number;
+  confidence_gap: number;
+  kb_coverage_score: number;
+  embedding_quality_score: number;
+  recommendations: DiagnosticRecommendation[];
+  fix_actions: FixAction[];
+  analysis_latency_ms: number;
+}
+
+// --- Chat Quality Dashboard ---
+
+export interface ChatQualityRow {
+  query_id: string;
+  conversation_id?: string;
+  user_email: string;
+  company_id: number;
+  query: string;
+  response_preview: string;
+  confidence: number;
+  bucket: "good" | "partial" | "poor";
+  agent: string;
+  latency_ms: number;
+  wave_count: number;
+  created_at: string;
+  has_trace: boolean;
+}
+
+export interface ChatQualityResponse {
+  good: ChatQualityRow[];
+  partial: ChatQualityRow[];
+  poor: ChatQualityRow[];
+  stats: {
+    good_count: number;
+    partial_count: number;
+    poor_count: number;
+    avg_confidence: number;
+  };
+}
+
+// --- Training Feedback ---
+
+export interface TrainingFeedbackRequest {
+  conversation_id?: string;
+  query: string;
+  actual_response: string;
+  expected_response: string;
+  root_cause_category?: string;
+}
+
+export interface TrainingFeedbackResponse {
+  contribution_id: string;
+  status: "staged" | "queued";
+  message: string;
 }
