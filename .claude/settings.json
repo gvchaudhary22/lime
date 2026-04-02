@@ -1,0 +1,64 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash",
+      "Edit",
+      "Read",
+      "Write",
+      "WebSearch",
+      "WebFetch",
+      "Agent"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/gauravchaudhary/Documents/project/marsproject/lime/.claude/hooks/pre-tool-use.sh"
+          }
+        ],
+        "description": "Block destructive commands, secret writes, and --no-verify bypasses"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/gauravchaudhary/Documents/project/marsproject/lime/.claude/hooks/post-tool-use.sh",
+            "timeout": 5
+          }
+        ],
+        "description": "Log tool usage to session state"
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/gauravchaudhary/Documents/project/marsproject/lime/.claude/hooks/stop.sh"
+          }
+        ],
+        "description": "Log session end and warn about uncommitted frontend changes"
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash /Users/gauravchaudhary/Documents/project/marsproject/lime/.claude/hooks/pre-compact.sh"
+          }
+        ],
+        "description": "Save git state snapshot before context compaction"
+      }
+    ]
+  }
+}
