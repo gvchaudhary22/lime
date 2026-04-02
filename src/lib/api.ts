@@ -17,6 +17,15 @@ interface RegisterRequest {
   confirm_password: string;
 }
 
+interface SSOTokenContext {
+  is_icrm_user: boolean;
+  company_id: string;
+  icrm_token?: string;
+  seller_token?: string;
+  sso_token_ready: boolean;
+  error_message?: string;
+}
+
 interface AuthResponse {
   token: string;
   user: {
@@ -26,6 +35,7 @@ interface AuthResponse {
     role: string;
   };
   expires_at: string;
+  sso_context?: SSOTokenContext;
 }
 
 interface CheckEmailResponse {
@@ -58,10 +68,11 @@ async function request<T>(
 
   if (!res.ok) {
     // Token expired or invalid — clear auth and redirect to login
-    if (res.status === 401 && typeof window !== "undefined") {
+    if ((res.status === 401 || res.status === 403) && typeof window !== "undefined") {
       localStorage.removeItem("mars_token");
       localStorage.removeItem("mars_user");
       localStorage.removeItem("mars_active_project");
+      localStorage.removeItem("mars_sso_context");
       window.location.href = "/";
     }
     return { success: false, error: json.error || "Something went wrong" };
@@ -2391,6 +2402,125 @@ export const api = {
       body: JSON.stringify({ preset, org_id: orgId }),
     }),
 
+  // --- Tool Registry (COSMOS) ---
+  getRegistrySummary: () =>
+    request<RegistrySummary>("/api/v1/admin/tool-registry/summary"),
+
+  listTools: (category?: string, status?: string) => {
+    const params = new URLSearchParams();
+    if (category) params.set("category", category);
+    if (status) params.set("status", status);
+    const qs = params.toString();
+    return request<RegistryTool[]>(`/api/v1/admin/tool-registry/tools${qs ? "?" + qs : ""}`);
+  },
+
+  getTool: (id: string) =>
+    request<RegistryTool>(`/api/v1/admin/tool-registry/tools/${id}`),
+
+  createTool: (data: Omit<RegistryTool, "id" | "created_at" | "updated_at">) =>
+    request<RegistryTool>("/api/v1/admin/tool-registry/tools", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  updateTool: (id: string, data: Omit<RegistryTool, "id" | "created_at" | "updated_at">) =>
+    request<RegistryTool>(`/api/v1/admin/tool-registry/tools/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  deleteTool: (id: string) =>
+    request<{ deleted: boolean }>(`/api/v1/admin/tool-registry/tools/${id}`, {
+      method: "DELETE",
+    }),
+
+  testTool: (id: string, inputs: Record<string, unknown>) =>
+    request<ToolTestResult>(`/api/v1/admin/tool-registry/tools/${id}/test`, {
+      method: "POST",
+      body: JSON.stringify({ inputs }),
+    }),
+
+  listSkills: (tier?: string) => {
+    const params = tier ? `?tier=${tier}` : "";
+    return request<SkillRegistryEntry[]>(`/api/v1/admin/tool-registry/skills${params}`);
+  },
+
+  registerSkill: (data: { name: string; tier: string; phases?: string[]; intents?: string[]; tags?: string[] }) =>
+    request<SkillRegistryEntry>("/api/v1/admin/tool-registry/skills", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  listActions: (actionType?: string, status?: string) => {
+    const params = new URLSearchParams();
+    if (actionType) params.set("action_type", actionType);
+    if (status) params.set("status", status);
+    const qs = params.toString();
+    return request<RegistryAction[]>(`/api/v1/admin/tool-registry/actions${qs ? "?" + qs : ""}`);
+  },
+
+  getAction: (id: string) =>
+    request<RegistryAction>(`/api/v1/admin/tool-registry/actions/${id}`),
+
+  createAction: (data: Omit<RegistryAction, "id" | "created_at" | "updated_at">) =>
+    request<RegistryAction>("/api/v1/admin/tool-registry/actions", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  updateAction: (id: string, data: Omit<RegistryAction, "id" | "created_at" | "updated_at">) =>
+    request<RegistryAction>(`/api/v1/admin/tool-registry/actions/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  deleteAction: (id: string) =>
+    request<{ deleted: boolean }>(`/api/v1/admin/tool-registry/actions/${id}`, {
+      method: "DELETE",
+    }),
+
+  // Agents
+  listAgents: (agentType?: string, status?: string) => {
+    const params = new URLSearchParams();
+    if (agentType) params.set("agent_type", agentType);
+    if (status) params.set("status", status);
+    const qs = params.toString();
+    return request<RegistryAgent[]>(`/api/v1/admin/tool-registry/agents${qs ? "?" + qs : ""}`);
+  },
+
+  getAgent: (id: string) =>
+    request<RegistryAgent>(`/api/v1/admin/tool-registry/agents/${id}`),
+
+  createAgent: (data: Omit<RegistryAgent, "id" | "created_at" | "updated_at">) =>
+    request<RegistryAgent>("/api/v1/admin/tool-registry/agents", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  updateAgent: (id: string, data: Partial<Omit<RegistryAgent, "id" | "created_at" | "updated_at">>) =>
+    request<RegistryAgent>(`/api/v1/admin/tool-registry/agents/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  deleteAgent: (id: string) =>
+    request<{ deleted: boolean }>(`/api/v1/admin/tool-registry/agents/${id}`, {
+      method: "DELETE",
+    }),
+
+  resetAgentLinks: (id: string) =>
+    request<{ agent_id: string; removed_tools: number; removed_skills: number; removed_actions: number }>(
+      `/api/v1/admin/tool-registry/agents/${id}/links`,
+      { method: "DELETE" }
+    ),
+
+  // Registry reset (development / admin)
+  resetRegistry: (includeSeeds = false) =>
+    request<RegistryResetResult>(
+      `/api/v1/admin/tool-registry/reset${includeSeeds ? "?include_seeds=true" : ""}`,
+      { method: "DELETE" }
+    ),
+
 };
 
 // --- Agent Generation Types (v25.0) ---
@@ -2644,6 +2774,105 @@ export interface KBSyncStatus {
   last_kb_sync_at: string | null;
   last_kb_sync_sha: string;
   kb_last_trained_at: string | null;
+}
+
+// --- Tool Registry (COSMOS) ---
+
+export interface ToolInputParam {
+  name: string;
+  type: string;
+  description: string;
+  required: boolean;
+}
+
+export interface RegistryTool {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  endpoint: string;
+  method: string;
+  input_schema: ToolInputParam[];
+  output_description: string;
+  tags: string[];
+  status: string;
+  agent_access: string[];
+  source: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RegistryAction {
+  id: string;
+  name: string;
+  description: string;
+  action_type: string;
+  input_schema: ToolInputParam[];
+  output_description: string;
+  tags: string[];
+  status: string;
+  risk_level: string;
+  approval_mode: string;
+  domain: string;
+  source: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SkillRegistryEntry {
+  id: string;
+  name: string;
+  tier: string;
+  phases: string[];
+  intents: string[];
+  tags: string[];
+  description: string;
+  status: string;
+  source: string;
+}
+
+export interface RegistryAgent {
+  id: string;
+  name: string;
+  description: string;
+  slug: string;
+  agent_type: string;
+  system_prompt: string;
+  model_hint: string;
+  temperature: number;
+  max_tokens: number;
+  domains: string[];
+  tags: string[];
+  status: string;
+  created_by: string;
+  tools: string[];
+  skills: string[];
+  actions: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ToolTestResult {
+  success: boolean;
+  output: Record<string, unknown>;
+  latency_ms: number;
+  error?: string;
+}
+
+export interface RegistrySummary {
+  tools: number;
+  skills: number;
+  actions: number;
+  agents: number;
+  total: number;
+}
+
+export interface RegistryResetResult {
+  deleted_tools: number;
+  deleted_skills: number;
+  deleted_actions: number;
+  deleted_agents: number;
+  include_seeds: boolean;
 }
 
 // --- Cosmos AI Workflow Settings ---

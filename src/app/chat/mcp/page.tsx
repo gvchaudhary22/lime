@@ -125,6 +125,8 @@ export default function MCPChatPage() {
 
     try {
       const token = localStorage.getItem("mars_token");
+      const ssoRaw = localStorage.getItem("mars_sso_context");
+      const ssoCtx = ssoRaw ? JSON.parse(ssoRaw) as { company_id?: string } : null;
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"}/api/v1/mcp/sessions/${activeSession.id}/send`,
         {
@@ -134,7 +136,7 @@ export default function MCPChatPage() {
             Accept: "text/event-stream",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ content: userMsg }),
+          body: JSON.stringify({ content: userMsg, company_id: ssoCtx?.company_id || "" }),
         }
       );
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Sidebar from "@/components/layout/Sidebar";
+import { api, RegistryResetResult } from "@/lib/api";
 import {
   Brain,
   Play,
@@ -17,6 +18,7 @@ import {
   Filter,
   CheckSquare,
   Square,
+  Trash2,
 } from "lucide-react";
 
 const COSMOS_URL =
@@ -24,9 +26,9 @@ const COSMOS_URL =
 
 // Available repos for training
 const REPOS = [
-  { id: "MultiChannel_API", label: "MultiChannel API", pillar1: true, pillar3: true, pillar4: false, desc: "Backend API — orders, shipments, billing" },
-  { id: "SR_Web", label: "SR Web (Seller)", pillar1: false, pillar3: true, pillar4: true, desc: "Seller panel — Angular frontend" },
-  { id: "MultiChannel_Web", label: "MultiChannel Web (ICRM)", pillar1: false, pillar3: true, pillar4: true, desc: "ICRM admin panel — AngularJS" },
+  { id: "MultiChannel_API", label: "MultiChannel API", pillar1: true, pillar3: true, pillar4: false, pillar5: false, desc: "Backend API — orders, shipments, billing" },
+  { id: "SR_Web", label: "SR Web (Seller)", pillar1: false, pillar3: true, pillar4: true, pillar5: true, desc: "Seller panel — Angular frontend" },
+  { id: "MultiChannel_Web", label: "MultiChannel Web (ICRM)", pillar1: false, pillar3: true, pillar4: true, pillar5: true, desc: "ICRM admin panel — AngularJS" },
 ];
 
 interface FileIndexStats {
@@ -92,13 +94,18 @@ export default function AITrainingPage() {
     schema: "idle",
     seeds: "idle",
     artifacts: "idle",
+    moduledocs: "idle",
     intent: "idle",
     graph: "idle",
     pageRole: "idle",
     crossRepo: "idle",
+    moduleEmbeddings: "idle",
   });
   const [jobResults, setJobResults] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [resetStatus, setResetStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [resetResult, setResetResult] = useState<RegistryResetResult | null>(null);
+  const [showResetConfirm, setShowResetConfirm] = useState<"pipeline" | "all" | null>(null);
 
   const fetchStats = useCallback(async () => {
     try {
@@ -169,6 +176,19 @@ export default function AITrainingPage() {
     } catch {
       setJobStatus((prev) => ({ ...prev, [key]: "error" }));
       setJobResults((prev) => ({ ...prev, [key]: "Connection failed" }));
+    }
+  };
+
+  const handleRegistryReset = async (includeSeeds: boolean) => {
+    setShowResetConfirm(null);
+    setResetStatus("running");
+    setResetResult(null);
+    const res = await api.resetRegistry(includeSeeds);
+    if (res.success && res.data) {
+      setResetResult(res.data);
+      setResetStatus("done");
+    } else {
+      setResetStatus("error");
     }
   };
 
@@ -273,10 +293,11 @@ export default function AITrainingPage() {
                   <div>
                     <p className="text-sm font-medium text-white">{repo.label}</p>
                     <p className="text-xs text-slate-500 mt-0.5">{repo.desc}</p>
-                    <div className="flex gap-1 mt-1.5">
+                    <div className="flex gap-1 mt-1.5 flex-wrap">
                       {repo.pillar1 && <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300">P1 Schema</span>}
                       {repo.pillar3 && <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-500/20 text-green-300">P3 APIs</span>}
                       {repo.pillar4 && <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300">P4 Pages</span>}
+                      {repo.pillar5 && <span className="text-[10px] px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300">P5 Modules</span>}
                     </div>
                   </div>
                 </button>
@@ -349,6 +370,21 @@ export default function AITrainingPage() {
                   {statusBadge(jobStatus[item.key], jobResults[item.key])}
                 </button>
               ))}
+
+              {/* Pillar 5 — Module Docs (only for frontend repos) */}
+              {selectedRepos.some((id) => REPOS.find((r) => r.id === id)?.pillar5) && (
+                <button
+                  onClick={() => runJob("moduledocs", "/pipeline/pillar5-modules", repoParam)}
+                  disabled={jobStatus.moduledocs === "running" || selectedRepos.length === 0}
+                  className="flex items-center justify-between px-4 py-3 rounded-lg bg-violet-500/10 border border-violet-500/20 text-violet-200 hover:bg-violet-500/20 hover:text-white disabled:opacity-50 transition-colors"
+                >
+                  <div>
+                    <p className="text-sm font-medium">Feed Module Docs (Pillar 5)</p>
+                    <p className="text-[10px] text-violet-400/70">Module-level documentation for AI context</p>
+                  </div>
+                  {statusBadge(jobStatus.moduledocs, jobResults.moduledocs)}
+                </button>
+              )}
             </div>
 
             {/* Pipeline Result */}
@@ -415,6 +451,34 @@ export default function AITrainingPage() {
                   </div>
                 </div>
               ))}
+
+              {/* Module Embeddings — Pillar 5 only (frontend repos) */}
+              {selectedRepos.some((id) => REPOS.find((r) => r.id === id)?.pillar5) && (
+                <div className="flex items-center justify-between p-3 rounded-lg bg-violet-500/5 border border-violet-500/20">
+                  <div className="flex items-center gap-3">
+                    {statusBadge(jobStatus.moduleEmbeddings)}
+                    <div>
+                      <p className="text-sm font-medium text-white">Module Embeddings</p>
+                      <p className="text-xs text-violet-400/70">Embeds module-level docs for semantic retrieval</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {jobResults.moduleEmbeddings && (
+                      <span className="text-xs text-slate-500">{jobResults.moduleEmbeddings}</span>
+                    )}
+                    <button
+                      onClick={() => {
+                        const body = selectedRepos.length === 1 ? { repo_id: selectedRepos[0] } : {};
+                        runJob("moduleEmbeddings", "/training/module-embeddings", body);
+                      }}
+                      disabled={jobStatus.moduleEmbeddings === "running"}
+                      className="px-3 py-1.5 rounded-md bg-violet-500/10 border border-violet-500/20 text-sm text-violet-300 hover:bg-violet-500/20 hover:text-white disabled:opacity-50 transition-colors"
+                    >
+                      {jobStatus.moduleEmbeddings === "running" ? "Training..." : "Train Now"}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -509,6 +573,72 @@ export default function AITrainingPage() {
               )}
             </div>
           )}
+
+          {/* Registry Reset */}
+          <div className="rounded-xl bg-red-500/[0.03] border border-red-500/20 p-6">
+            <h2 className="text-lg font-semibold text-white mb-1 flex items-center gap-2">
+              <Trash2 className="w-5 h-5 text-red-400" />
+              Registry Reset
+            </h2>
+            <p className="text-sm text-slate-400 mb-4">
+              Clear tools, skills, actions, and agents stored by the training pipeline so you can re-run a clean ingestion.
+            </p>
+
+            {resetResult && resetStatus === "done" && (
+              <div className="mb-4 p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-sm text-green-300">
+                Deleted — tools: {resetResult.deleted_tools}, skills: {resetResult.deleted_skills}, actions: {resetResult.deleted_actions}, agents: {resetResult.deleted_agents}
+                {resetResult.include_seeds && " (seeds included)"}
+              </div>
+            )}
+            {resetStatus === "error" && (
+              <div className="mb-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-300">
+                Reset failed. Check API connectivity.
+              </div>
+            )}
+
+            {showResetConfirm && (
+              <div className="mb-4 p-4 rounded-lg bg-red-500/10 border border-red-500/30">
+                <p className="text-sm text-red-300 mb-3">
+                  {showResetConfirm === "all"
+                    ? "This will delete ALL registry entries including seeds. Are you sure?"
+                    : "This will delete pipeline-generated entries (not seeds). Continue?"}
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => handleRegistryReset(showResetConfirm === "all")}
+                    className="px-3 py-1.5 rounded-md bg-red-600 text-white text-sm hover:bg-red-700 transition-colors"
+                  >
+                    Yes, Reset
+                  </button>
+                  <button
+                    onClick={() => setShowResetConfirm(null)}
+                    className="px-3 py-1.5 rounded-md bg-white/[0.05] text-slate-300 text-sm hover:bg-white/[0.1] transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowResetConfirm("pipeline")}
+                disabled={resetStatus === "running" || !!showResetConfirm}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm hover:bg-red-500/20 transition-colors disabled:opacity-50"
+              >
+                {resetStatus === "running" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                Reset Pipeline Data
+              </button>
+              <button
+                onClick={() => setShowResetConfirm("all")}
+                disabled={resetStatus === "running" || !!showResetConfirm}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-700/10 border border-red-700/30 text-red-500 text-sm hover:bg-red-700/20 transition-colors disabled:opacity-50"
+              >
+                {resetStatus === "running" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                Reset All (incl. Seeds)
+              </button>
+            </div>
+          </div>
 
           {/* Tournament A/B */}
           <div className="rounded-xl bg-white/[0.03] border border-white/[0.06] p-6">

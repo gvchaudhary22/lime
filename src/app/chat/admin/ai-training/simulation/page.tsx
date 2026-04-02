@@ -8,8 +8,9 @@ import {
   ChevronRight, History, AlertTriangle, RefreshCw,
 } from "lucide-react";
 
-const COSMOS_URL =
-  process.env.NEXT_PUBLIC_COSMOS_URL || "http://localhost:10001";
+// Route through MARS, not COSMOS directly
+const MARS_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
 interface WaveResult {
   name: string;
@@ -55,32 +56,14 @@ export default function SimulationPage() {
   const [error, setError] = useState<string | null>(null);
   const [showHistory, setShowHistory] = useState(false);
 
-  // Load history from COSMOS analytics
-  const loadHistory = useCallback(async () => {
-    try {
-      const res = await fetch(`${COSMOS_URL}/cosmos/api/v1/hybrid/analytics`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.recent_queries) {
-          setHistory(data.recent_queries.slice(0, 20).map((q: Record<string, unknown>) => ({
-            query: q.query as string || "",
-            response: (q.response as string || "").slice(0, 200),
-            confidence: q.confidence as number || 0,
-            latency_ms: q.total_latency_ms as number || 0,
-            tools: (q.tools_used as string[]) || [],
-            agents: (q.agent_chain as string[]) || [],
-            timestamp: q.timestamp as string || new Date().toISOString(),
-            tier: q.tier as number || 1,
-            success: (q.confidence as number || 0) >= 0.5,
-          })));
-        }
-      }
-    } catch {
-      // Analytics endpoint may not be available
-    }
+  // History is session-local only — populated as simulations run.
+  // The /api/v1/admin/cosmos/simulate endpoint is POST-only and does not
+  // serve history; a GET against it would return 404/405.
+  // If a persistent history endpoint is added to MARS in the future,
+  // wire it here via api.ts (never call COSMOS directly).
+  const addToHistory = useCallback((entry: HistoryEntry) => {
+    setHistory(prev => [entry, ...prev].slice(0, 20));
   }, []);
-
-  useEffect(() => { loadHistory(); }, [loadHistory]);
 
   const runSimulation = async () => {
     if (!query.trim()) return;
@@ -104,13 +87,19 @@ export default function SimulationPage() {
     });
 
     try {
-      const res = await fetch(`${COSMOS_URL}/cosmos/api/v1/hybrid/chat`, {
+      // Route through MARS proxy (LIME must never call COSMOS directly)
+      const token = typeof window !== "undefined" ? localStorage.getItem("mars_token") : null;
+      const ssoRaw = typeof window !== "undefined" ? localStorage.getItem("mars_sso_context") : null;
+      const ssoCtx = ssoRaw ? JSON.parse(ssoRaw) as { company_id?: string } : null;
+      const res = await fetch(`${MARS_URL}/api/v1/admin/cosmos/simulate`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           message: query,
-          user_id: "simulation_user",
-          debug: true,
+          company_id: ssoCtx?.company_id || "",
           metadata: { simulation: true },
         }),
       });
@@ -121,90 +110,79 @@ export default function SimulationPage() {
         return;
       }
 
-      const data = await res.json();
+      const raw = await res.json();
+      // MARS wraps response as { success, data: { ...cosmos_response, _mars_metadata } }
+      const data = raw.data || raw;
+      const waveTrace = data.wave_trace;
 
-      // Parse debug data into wave results
-      const pb = data.pipeline_breakdown || {};
-      const timing = data.timing || {};
-      const signal = data.signal || {};
-      const classification = pb._request_classification || {};
-      const riper = pb._riper || {};
-      const ralph = pb._ralph || {};
-      const forge = pb._agent_forge || {};
-      const w3 = pb._wave3_langgraph || {};
-      const w4 = pb._wave4_neo4j || {};
+      let parsedWaves: WaveResult[];
 
-      const parsedWaves: WaveResult[] = [
-        {
-          name: "Wave 1: Probe",
-          status: "done",
-          latency_ms: timing.probe_ms || 0,
-          summary: `Intent: ${classification.domain || "?"} | Complexity: ${classification.complexity || "?"} | Confidence: ${classification.confidence || 0}`,
+      if (waveTrace && waveTrace.waves) {
+        // Canonical wave_trace path (preferred)
+        parsedWaves = waveTrace.waves.map((w: Record<string, unknown>) => ({
+          name: `Wave ${w.wave}: ${w.name}`,
+          status: w.status as WaveResult["status"],
+          latency_ms: (w.latency_ms as number) || 0,
+          summary: (w.summary as string) || "",
           data: {
-            intent: classification,
-            pipelines: Object.entries(pb)
-              .filter(([k]) => !k.startsWith("_"))
-              .map(([k, v]) => ({ pipeline: k, ...(v as Record<string, unknown>) })),
+            ...(w.key_findings as Record<string, unknown> || {}),
+            vector_trace: w.vector_trace,
+            skipped_reason: w.skipped_reason,
           },
-        },
-        {
-          name: "Wave 2: Deep GraphRAG",
-          status: timing.deep_ms ? "done" : "skipped",
-          latency_ms: timing.deep_ms || 0,
-          summary: `Evidence: ${signal.evidence_count || 0} sources | Entity resolved: ${signal.entity_resolved ? "Yes" : "No"}`,
-          data: {
-            evidence_count: signal.evidence_count,
-            entity_resolved: signal.entity_resolved,
-            tier: signal.tier,
-          },
-        },
-        {
-          name: "Wave 3: LangGraph",
-          status: w3 && Object.keys(w3).length > 0 ? "done" : "skipped",
-          latency_ms: w3?.latency_ms || 0,
-          summary: w3?.refined_entities
-            ? `Refined ${w3.refined_entities.length} entities | Tools: ${w3.tool_plan?.join(", ") || "none"}`
-            : "Not triggered (feature flag or quick query)",
-          data: w3,
-        },
-        {
-          name: "Wave 4: Neo4j",
-          status: w4 && Object.keys(w4).length > 0 ? "done" : "skipped",
-          latency_ms: w4?.latency_ms || 0,
-          summary: w4?.path_count
-            ? `${w4.path_count} graph nodes | ${w4.entity_targets_used || 0} entity targets`
-            : "Not triggered",
-          data: w4,
-        },
-        {
-          name: "Wave 5: RIPER + ReAct",
-          status: data.content ? "done" : "error",
-          latency_ms: timing.llm_ms || 0,
-          summary: riper
-            ? `${riper.mode || "lite"} | ${riper.phases?.length || 0} phases | Quality: ${riper.quality_score || "?"}`
-            : `Direct ReAct | Confidence: ${data.confidence || 0}`,
-          data: {
-            riper,
-            ralph,
-            forge: forge && Object.keys(forge).length > 0 ? forge : undefined,
-            tools_used: data.tools_used || [],
-          },
-        },
-      ];
+        }));
+      } else {
+        // Fallback: parse legacy pipeline_breakdown (for older COSMOS)
+        const pb = data.pipeline_breakdown || {};
+        const timing = data.timing || {};
+        const signal = data.signal || {};
+        const classification = pb._request_classification || {};
+        const riper = pb._riper || {};
+        const w3 = pb._wave3_langgraph || {};
+        const w4 = pb._wave4_neo4j || {};
+        parsedWaves = [
+          { name: "Wave 1: Probe", status: "done", latency_ms: timing.probe_ms || 0,
+            summary: `Intent: ${classification.domain || "?"} | Complexity: ${classification.complexity || "?"}`, data: classification },
+          { name: "Wave 2: Deep GraphRAG", status: timing.deep_ms ? "done" : "skipped", latency_ms: timing.deep_ms || 0,
+            summary: `Evidence: ${signal.evidence_count || 0} sources`, data: signal },
+          { name: "Wave 3: LangGraph", status: w3 && Object.keys(w3).length > 0 ? "done" : "skipped", latency_ms: w3?.latency_ms || 0,
+            summary: w3?.refined_entities ? `Refined ${w3.refined_entities.length} entities` : "Not triggered", data: w3 },
+          { name: "Wave 4: Neo4j", status: w4 && Object.keys(w4).length > 0 ? "done" : "skipped", latency_ms: w4?.latency_ms || 0,
+            summary: w4?.path_count ? `${w4.path_count} graph nodes` : "Not triggered", data: w4 },
+          { name: "Wave 5: RIPER + ReAct", status: data.content ? "done" : "error", latency_ms: timing.llm_ms || 0,
+            summary: `${riper.mode || "lite"} | Confidence: ${data.confidence || 0}`, data: { riper, tools_used: data.tools_used || [] } },
+        ];
+      }
+
+      const traceResp = waveTrace?.response || {};
+      const confidence = data.confidence || 0;
+      const timestamp = waveTrace?.timestamp || new Date().toISOString();
+      const totalLatencyMs = traceResp.total_latency_ms || data.timing?.total_ms || 0;
 
       setResult({
         query,
         final_response: data.content || "No response",
-        confidence: data.confidence || 0,
-        total_latency_ms: timing.total_ms || timing.probe_ms + (timing.deep_ms || 0) + (timing.llm_ms || 0),
+        confidence,
+        total_latency_ms: totalLatencyMs,
         waves: parsedWaves,
         tools_used: data.tools_used || [],
-        agent_chain: pb._agent_forge ? [pb._agent_forge.agent_name] : [],
-        guardrails_pre: 15,
-        guardrails_post: 10,
-        pattern_hit: (data.pipeline_breakdown?.fast_path) || false,
-        timestamp: new Date().toISOString(),
+        agent_chain: traceResp.agent_chain || [],
+        guardrails_pre: traceResp.guardrails_pre?.passed || 0,
+        guardrails_post: traceResp.guardrails_post?.passed || 0,
+        pattern_hit: traceResp.pattern_hit || false,
+        timestamp,
         raw_debug: data,
+      });
+
+      addToHistory({
+        query,
+        response: (data.content || "").slice(0, 200),
+        confidence,
+        latency_ms: totalLatencyMs,
+        tools: data.tools_used || [],
+        agents: traceResp.agent_chain || [],
+        timestamp,
+        tier: (data._mars_metadata as Record<string, unknown>)?.tier as number || 1,
+        success: confidence >= 0.5,
       });
 
     } catch (e) {

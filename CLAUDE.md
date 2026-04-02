@@ -215,6 +215,7 @@ v17.0 types:
 - Shared layouts go in `src/components/`
 - Page-specific components co-locate with the page
 - `npm run build` must pass with zero errors before declaring done
+- Before marking any task done, run `.claude/rules/verification-before-completion.md` checklist
 
 ## v21.0 Features
 

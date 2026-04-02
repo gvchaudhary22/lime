@@ -100,7 +100,7 @@ describe("Build Health", () => {
     const criticalRoutes = [
       "/page",           // Home / sign-in
       "/chat/page",      // Chat dashboard
-      "/not-found",      // 404 page
+      "/_not-found",     // 404 page (Next.js 14 App Router convention)
     ];
 
     const missingRoutes = criticalRoutes.filter(

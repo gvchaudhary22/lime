@@ -54,6 +54,7 @@ export default function Sidebar({ activePage = "chats" }: SidebarProps) {
   const [starred, setStarred] = useState<Bookmark[]>([]);
   const [recentConversations, setRecentConversations] = useState<Conversation[]>([]);
   const [adminExpanded, setAdminExpanded] = useState(false);
+  const [cosmosExpanded, setCosmosExpanded] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -201,9 +202,22 @@ export default function Sidebar({ activePage = "chats" }: SidebarProps) {
     { icon: Shield, label: "Critical Issues", href: "/chat/admin/critical-issues", id: "admin-critical" },
     { icon: Shield, label: "Enforcement", href: "/chat/admin/enforcement", id: "admin-enforcement" },
     { icon: Clock, label: "Jobs", href: "/chat/admin/jobs", id: "admin-jobs" },
-    { icon: Brain, label: "AI Training", href: "/chat/admin/ai-training", id: "admin-ai-training" },
     { icon: GitBranch, label: "KB Updates", href: "/chat/admin/kb-updates", id: "admin-kb-updates" },
-    { icon: Zap, label: "Cosmos AI", href: "/chat/admin/cosmos-settings", id: "admin-cosmos-settings" },
+  ];
+
+  const cosmosSubItems = [
+    { icon: Brain, label: "AI Training", href: "/chat/admin/cosmos/training", id: "cosmos-training" },
+    { icon: Zap, label: "Simulation", href: "/chat/admin/cosmos/simulation", id: "cosmos-simulation" },
+    { icon: Search, label: "Query Traces", href: "/chat/admin/cosmos/traces", id: "cosmos-traces" },
+    { icon: Bot, label: "Agents", href: "/chat/admin/cosmos/agents", id: "cosmos-agents" },
+    { icon: Settings, label: "Tool Registry", href: "/chat/admin/cosmos/registry/tools", id: "cosmos-tools" },
+    { icon: Code2, label: "Skill Builder", href: "/chat/admin/cosmos/registry/skills", id: "cosmos-skills" },
+    { icon: ClipboardCheck, label: "Actions", href: "/chat/admin/cosmos/registry/actions", id: "cosmos-actions" },
+    { icon: Bot, label: "Agent Builder", href: "/chat/admin/cosmos/registry/agents", id: "cosmos-registry-agents" },
+    { icon: BarChart3, label: "KB Quality", href: "/chat/admin/cosmos/kb-quality", id: "cosmos-kb" },
+    { icon: Gauge, label: "Cost Analytics", href: "/chat/admin/cosmos/cost", id: "cosmos-cost" },
+    { icon: Star, label: "Feedback Review", href: "/chat/admin/cosmos/feedback", id: "cosmos-feedback" },
+    { icon: Settings, label: "Settings", href: "/chat/admin/cosmos/settings", id: "cosmos-settings" },
   ];
 
   return (
@@ -249,6 +263,36 @@ export default function Sidebar({ activePage = "chats" }: SidebarProps) {
                 key={item.id}
                 onClick={() => router.push(item.href)}
                 className="w-full flex items-center gap-3 px-3 py-1.5 rounded-lg text-xs text-slate-500 hover:text-white hover:bg-white/[0.04] transition-colors"
+              >
+                <item.icon className="w-3.5 h-3.5" />
+                {item.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* COSMOS Section — expandable submenu */}
+        <button
+          onClick={() => setCosmosExpanded(!cosmosExpanded)}
+          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-slate-400 hover:text-white hover:bg-white/[0.05] transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <Brain className="w-4 h-4 text-purple-400" />
+            <span className="bg-gradient-to-r from-purple-400 to-blue-400 bg-clip-text text-transparent font-semibold">COSMOS</span>
+          </div>
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${cosmosExpanded ? "rotate-180" : ""}`} />
+        </button>
+        {cosmosExpanded && (
+          <div className="ml-4 space-y-0.5">
+            {cosmosSubItems.map((item) => (
+              <button
+                key={item.id}
+                onClick={() => router.push(item.href)}
+                className={`w-full flex items-center gap-3 px-3 py-1.5 rounded-lg text-xs transition-colors ${
+                  activePage === item.id
+                    ? "text-purple-300 bg-purple-500/10"
+                    : "text-slate-500 hover:text-white hover:bg-white/[0.04]"
+                }`}
               >
                 <item.icon className="w-3.5 h-3.5" />
                 {item.label}

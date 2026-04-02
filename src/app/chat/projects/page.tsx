@@ -64,10 +64,16 @@ export default function ProjectsPage() {
   }, [router]);
 
   const fetchProjects = async () => {
-    const [projRes, repoRes] = await Promise.all([
-      api.getProjects(),
-      api.listRepositories(),
-    ]);
+    let projRes, repoRes;
+    try {
+      [projRes, repoRes] = await Promise.all([
+        api.getProjects(),
+        api.listRepositories(),
+      ]);
+    } catch {
+      setLoading(false);
+      return;
+    }
 
     const items: DisplayProject[] = [];
     const repoIdsWithProjects = new Set<string>();

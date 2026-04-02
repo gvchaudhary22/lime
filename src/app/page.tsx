@@ -32,6 +32,9 @@ export default function SignInPage() {
       if (res.success && res.data) {
         localStorage.setItem("mars_token", res.data.token);
         localStorage.setItem("mars_user", JSON.stringify(res.data.user));
+        if (res.data.sso_context) {
+          localStorage.setItem("mars_sso_context", JSON.stringify(res.data.sso_context));
+        }
         router.push("/chat");
       } else {
         setError(res.error || "Invalid credentials");
