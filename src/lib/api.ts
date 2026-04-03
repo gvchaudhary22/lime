@@ -2525,11 +2525,14 @@ export const api = {
   // COSMOS Simulation + Observability (v22.0)
   // -------------------------------------------------------------------------
 
-  runSimulation: (data: { message: string; company_id?: string; mode?: string; overrides?: object }) =>
+  runSimulation: (data: { message: string; company_id?: string; mode?: string; overrides?: object; seller_token?: string }) =>
     request<SimulationResult>("/api/v1/admin/cosmos/simulate", {
       method: "POST",
-      body: JSON.stringify({ ...data, metadata: { simulation: true } }),
+      body: JSON.stringify({ ...data, metadata: { simulation: "true" } }),
     }),
+
+  getICRMToken: () =>
+    request<{ token: string; sso_token: string; user_id: number; company_id: number; email: string; created_at: string }>("/api/v1/admin/icrm-token"),
 
   diagnoseQuery: (data: DiagnoseRequest) =>
     request<DiagnosisResult>("/api/v1/admin/cosmos/diagnose", {
@@ -2547,6 +2550,60 @@ export const api = {
       method: "POST",
       body: JSON.stringify(data),
     }),
+
+  // --- MARS Runtime (v27.0) ---
+  marsListPackages: (type?: string, coreOnly?: boolean) => {
+    const params = new URLSearchParams();
+    if (type) params.set("type", type);
+    if (coreOnly) params.set("core_only", "true");
+    const qs = params.toString();
+    return request<MarsPackage[]>(`/api/v1/mars/packages${qs ? "?" + qs : ""}`);
+  },
+
+  marsSyncPackages: () =>
+    request<MarsSyncResponse>("/api/v1/mars/packages/sync", { method: "POST" }),
+
+  marsInstallPackage: (data: MarsInstallRequest) =>
+    request<MarsInstallation>("/api/v1/mars/install", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  marsUninstallPackage: (projectId: string, pkg: string) =>
+    request<void>(`/api/v1/mars/install/${projectId}/${pkg}`, { method: "DELETE" }),
+
+  marsListInstalled: (projectId: string) =>
+    request<MarsListInstalledResponse>(`/api/v1/mars/installed/${projectId}`),
+
+  marsCommandWave: (data: MarsWaveRequest) =>
+    request<MarsWaveResponse>("/api/v1/mars/commands/wave", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  marsCommandForge: (data: MarsForgeRequest) =>
+    request<MarsForgeResponse>("/api/v1/mars/commands/forge", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  marsCommandPromote: (data: MarsPromoteRequest) =>
+    request<MarsPromoteResponse>("/api/v1/mars/commands/promote", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  marsCommandNexus: (data: MarsNexusRequest) =>
+    request<MarsNexusResponse>("/api/v1/mars/commands/nexus", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  marsCommandStatus: (projectId: string) =>
+    request<MarsStatusResponse>(`/api/v1/mars/commands/status?project_id=${projectId}`),
+
+  marsGetState: (projectId: string) =>
+    request<MarsStateHistoryResponse>(`/api/v1/mars/state/${projectId}`),
 
 };
 
@@ -3043,4 +3100,129 @@ export interface TrainingFeedbackResponse {
   contribution_id: string;
   status: "staged" | "queued";
   message: string;
+}
+
+// --- MARS Runtime Types (v27.0) ---
+
+export interface MarsPackage {
+  id: string;
+  name: string;
+  type: string; // agent | skill | command | workflow
+  version: string;
+  description: string;
+  content: string;
+  source_path: string;
+  is_core: boolean;
+  metadata: string;
+  synced_at: string;
+  created_at: string;
+}
+
+export interface MarsSyncResponse {
+  synced: number;
+  skipped: number;
+  message: string;
+}
+
+export interface MarsInstallRequest {
+  project_id: string;
+  package_name: string;
+  userland?: boolean;
+}
+
+export interface MarsInstallation {
+  id: string;
+  project_id: string;
+  package_id: string;
+  package_name: string;
+  installed_path: string;
+  is_userland: boolean;
+  installed_at: string;
+}
+
+export interface MarsListInstalledResponse {
+  project_id: string;
+  installations: MarsInstallation[];
+  total: number;
+}
+
+export interface MarsWaveRequest {
+  project_id: string;
+  objective: string;
+  context_files?: string[];
+}
+
+export interface MarsWaveResponse {
+  wave_id: string;
+  project_id: string;
+  status: string;
+}
+
+export interface MarsForgeRequest {
+  project_id: string;
+  description: string;
+  skills?: string[];
+}
+
+export interface MarsForgeResponse {
+  package_id: string;
+  package_name: string;
+  message: string;
+}
+
+export interface MarsPromoteRequest {
+  package_name: string;
+}
+
+export interface MarsPromoteResponse {
+  package_name: string;
+  is_core: boolean;
+  message: string;
+}
+
+export interface MarsNexusRequest {
+  lead_project_id: string;
+  target_project_ids: string[];
+  objective: string;
+}
+
+export interface MarsNexusResponse {
+  nexus_operation_id: string;
+  wave_ids: string[];
+  status: string;
+}
+
+export interface MarsStatusResponse {
+  project_id: string;
+  phase: string;
+  state?: MarsProjectState;
+}
+
+export interface MarsProjectState {
+  id: string;
+  project_id: string;
+  content: string;
+  checksum: string;
+  phase: string;
+  previous_id: string;
+  created_at: string;
+}
+
+export interface MarsStateHistoryResponse {
+  project_id: string;
+  current: MarsProjectState | null;
+  history: MarsProjectState[];
+}
+
+// --- Playground (v23.0) ---
+
+export interface PlaygroundDiff {
+  confidence_delta: number;      // panel_b.confidence - panel_a.confidence
+  latency_delta_ms: number;      // panel_b.total_latency_ms - panel_a.total_latency_ms
+  waves_delta: number;           // waves done in B minus waves done in A
+  response_similarity: number;   // 0–1 Jaccard word-overlap
+  panel_a_chunks: string[];      // top chunk entity_ids from panel A wave data
+  panel_b_chunks: string[];      // top chunk entity_ids from panel B wave data
+  new_chunks: string[];          // present in B but not A
+  dropped_chunks: string[];      // present in A but not B
 }

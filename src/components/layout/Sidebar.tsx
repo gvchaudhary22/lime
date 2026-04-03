@@ -33,6 +33,8 @@ import {
   Gauge,
   Bot,
   Clock,
+  FlaskConical,
+  Globe,
 } from "lucide-react";
 import { api, Bookmark, Conversation } from "@/lib/api";
 
@@ -190,6 +192,12 @@ export default function Sidebar({ activePage = "chats" }: SidebarProps) {
       href: "/chat/mcp",
       id: "mcp-chat",
     },
+    {
+      icon: Globe,
+      label: "MARS Runtime",
+      href: "/chat/mars",
+      id: "mars-runtime",
+    },
   ];
 
   const adminSubItems = [
@@ -208,6 +216,7 @@ export default function Sidebar({ activePage = "chats" }: SidebarProps) {
   const cosmosSubItems = [
     { icon: Brain, label: "AI Training", href: "/chat/admin/cosmos/training", id: "cosmos-training" },
     { icon: Zap, label: "Simulation", href: "/chat/admin/cosmos/simulation", id: "cosmos-simulation" },
+    { icon: FlaskConical, label: "Playground", href: "/chat/admin/cosmos/playground", id: "cosmos-playground" },
     { icon: Search, label: "Query Traces", href: "/chat/admin/cosmos/traces", id: "cosmos-traces" },
     { icon: Bot, label: "Agents", href: "/chat/admin/cosmos/agents", id: "cosmos-agents" },
     { icon: Settings, label: "Tool Registry", href: "/chat/admin/cosmos/registry/tools", id: "cosmos-tools" },
