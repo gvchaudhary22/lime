@@ -64,8 +64,17 @@ export default function ImpactsTable({ items, onRowClick }: Props) {
           return (
             <tr
               key={it.id}
+              tabIndex={0}
+              role="button"
+              aria-label={`Open impact detail for ${it.http_method || ""} ${it.http_path}`}
               onClick={() => onRowClick(it)}
-              className="cursor-pointer border-b border-white/[0.03] transition hover:bg-white/[0.02]"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onRowClick(it);
+                }
+              }}
+              className="cursor-pointer border-b border-white/[0.03] transition hover:bg-white/[0.02] focus:bg-white/[0.03] focus:outline-none focus:ring-1 focus:ring-cyan-500/40"
             >
               <td className="px-4 py-3 font-mono text-xs text-slate-300">
                 {it.http_method || "—"}

@@ -55,8 +55,17 @@ export default function PrTable({ items, onRowClick }: Props) {
           return (
             <tr
               key={pr.id}
+              tabIndex={0}
+              role="button"
+              aria-label={`Open PR #${pr.pr_number}`}
               onClick={() => onRowClick(pr.id)}
-              className="cursor-pointer border-b border-white/[0.03] transition hover:bg-white/[0.02]"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onRowClick(pr.id);
+                }
+              }}
+              className="cursor-pointer border-b border-white/[0.03] transition hover:bg-white/[0.02] focus:bg-white/[0.03] focus:outline-none focus:ring-1 focus:ring-cyan-500/40"
             >
               <td className="px-4 py-3 font-mono text-xs text-slate-300">
                 #{pr.pr_number}
