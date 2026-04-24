@@ -35,6 +35,7 @@ import {
   Clock,
   FlaskConical,
   Globe,
+  GitPullRequest,
 } from "lucide-react";
 import { api, Bookmark, Conversation } from "@/lib/api";
 
@@ -155,6 +156,12 @@ export default function Sidebar({ activePage = "chats" }: SidebarProps) {
       label: "Jira",
       href: "/chat/jira",
       id: "jira",
+    },
+    {
+      icon: GitPullRequest,
+      label: "PR Feed",
+      href: "/chat/pr-feed",
+      id: "pr-feed",
     },
     {
       icon: Map,
