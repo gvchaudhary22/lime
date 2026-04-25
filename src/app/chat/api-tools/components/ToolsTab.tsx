@@ -52,7 +52,8 @@ export default function ToolsTab() {
     try {
       const rows = await listTools();
       setTools(rows);
-      if (rows.length > 0 && selected === null) setSelected(rows[0].id);
+      // TS-L7 — functional updater so we never capture a stale `selected`.
+      setSelected((cur) => cur ?? (rows.length > 0 ? rows[0].id : null));
     } catch (err) {
       setError(_msg(err));
     }
@@ -68,14 +69,36 @@ export default function ToolsTab() {
     }
   };
 
-  useEffect(() => { refreshTools(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // TS-H2 — initial tools load with alive-guard.
+  useEffect(() => {
+    let alive = true;
+    listTools()
+      .then((rows) => {
+        if (!alive) return;
+        setTools(rows);
+        setSelected((cur) => cur ?? (rows.length > 0 ? rows[0].id : null));
+      })
+      .catch((err) => { if (alive) setError(_msg(err)); });
+    return () => { alive = false; };
+  }, []);
 
+  // TS-H2 / TS-M1 — race condition on rapid tool selection: clicking
+  // tool A then tool B before A's getToolApis resolves would overwrite
+  // B's members with A's stale promise. Alive-guard scoped per-effect.
   useEffect(() => {
     if (selected === null) return;
+    let alive = true;
     setServerMembers(null);
     setLocalMembers(null);
     setError(null);
-    refreshMembers(selected);
+    getToolApis(selected)
+      .then((rows) => {
+        if (!alive) return;
+        setServerMembers(rows);
+        setLocalMembers(rows);
+      })
+      .catch((err) => { if (alive) setError(_msg(err)); });
+    return () => { alive = false; };
   }, [selected]);
 
   const visibleTools = (tools ?? []).filter(

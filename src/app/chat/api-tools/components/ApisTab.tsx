@@ -32,27 +32,39 @@ export default function ApisTab() {
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
 
+  // TS-H2 — alive-guard prevents setState on unmounted component if
+  // user clicks away before the fetch resolves. Functional-updater on
+  // setModuleName (TS-H1) avoids capturing the initial empty closure.
   useEffect(() => {
+    let alive = true;
     listAdminModules()
       .then((rows) => {
+        if (!alive) return;
         setModules(rows);
-        if (rows.length > 0 && !moduleName) setModuleName(rows[0].module_name);
+        setModuleName((cur) => cur || rows[0]?.module_name || "");
       })
-      .catch((err) => setError(_msg(err)));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+      .catch((err) => { if (alive) setError(_msg(err)); });
+    return () => { alive = false; };
+  }, []);
 
+  // TS-H2 / TS-M1 — alive-guard prevents a stale promise (e.g. user
+  // switched module mid-fetch) from overwriting the currently-displayed
+  // ops with a different scope's data.
   useEffect(() => {
     if (!moduleName) return;
+    let alive = true;
     setServerOps(null);
     setLocalOps(null);
     setError(null);
     setSaveStatus("idle");
     listAdminOperations({ platform, module: moduleName })
       .then((ops) => {
+        if (!alive) return;
         setServerOps(ops);
         setLocalOps(ops);
       })
-      .catch((err) => setError(_msg(err)));
+      .catch((err) => { if (alive) setError(_msg(err)); });
+    return () => { alive = false; };
   }, [platform, moduleName]);
 
   const dirty =
