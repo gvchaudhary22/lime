@@ -33,6 +33,24 @@ export interface AdminOperation {
   ai_platform_eligible_api: boolean;
   read_write_type: string | null;
   risk_level: string | null;
+  // Phase-12 — deprecation flags drive the "Show deprecated" filter
+  // in the APIs tab. Treat either-true as "deprecated" for display.
+  deprecated: boolean;
+  elk_deprecated_api: boolean;
+}
+
+export interface ModuleCounts {
+  total: number;
+  active: number;
+  deprecated: number;
+}
+
+export interface OperationCountsResponse {
+  platform: string;
+  total: number;
+  active: number;
+  deprecated: number;
+  by_module: Record<string, ModuleCounts>;
 }
 
 export interface SetEligibilityPayload {

@@ -7,6 +7,7 @@ import {
   addApiToTool,
   archiveTool,
   createTool,
+  getOperationCounts,
   getToolApis,
   listAdminModules,
   listAdminOperations,
@@ -135,6 +136,23 @@ describe("operations client", () => {
     expect((init as RequestInit).method).toBe("PATCH");
     expect(JSON.parse((init as RequestInit).body as string)).toEqual({ eligible: true });
     expect(r.ai_platform_eligible_api).toBe(true);
+  });
+
+  it("getOperationCounts hits /admin/operations/counts with platform query", async () => {
+    mockFetch.mockResolvedValueOnce(
+      okJson({
+        platform: "seller_panel",
+        total: 357,
+        active: 258,
+        deprecated: 99,
+        by_module: { Order: { total: 119, active: 98, deprecated: 21 } },
+      })
+    );
+    const r = await getOperationCounts("seller_panel");
+    const [url] = mockFetch.mock.calls[0];
+    expect(String(url)).toMatch(/\/admin\/operations\/counts\?.*platform=seller_panel/);
+    expect(r.total).toBe(357);
+    expect(r.by_module.Order.active).toBe(98);
   });
 });
 

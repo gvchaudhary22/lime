@@ -133,6 +133,7 @@ import type {
   AdminTool,
   CreateToolPayload,
   ListOperationsParams,
+  OperationCountsResponse,
   PatchToolPayload,
   PublicToolsResponse,
   RemoveApiFromToolResponse,
@@ -226,6 +227,13 @@ export function setOperationEligibility(
   );
 }
 
+export function getOperationCounts(
+  platform: string
+): Promise<OperationCountsResponse> {
+  const qs = buildQuery({ platform });
+  return getJson<OperationCountsResponse>(`/admin/operations/counts${qs}`);
+}
+
 // ── Tools CRUD ───────────────────────────────────────────────────────────
 
 export function listTools(): Promise<AdminTool[]> {
@@ -304,6 +312,7 @@ export const aiplatformkbApi = {
   listAdminOperations,
   reorderOperations,
   setOperationEligibility,
+  getOperationCounts,
   listTools,
   createTool,
   patchTool,

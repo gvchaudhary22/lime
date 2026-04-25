@@ -11,6 +11,7 @@ const mockReorderModules = vi.fn();
 const mockListAdminOperations = vi.fn();
 const mockReorderOperations = vi.fn();
 const mockSetOperationEligibility = vi.fn();
+const mockGetOperationCounts = vi.fn();
 const mockListTools = vi.fn();
 const mockGetToolApis = vi.fn();
 const mockCreateTool = vi.fn();
@@ -29,6 +30,7 @@ vi.mock("@/lib/aiplatformkb-api", async () => {
     listAdminOperations: (...a: unknown[]) => mockListAdminOperations(...a),
     reorderOperations: (...a: unknown[]) => mockReorderOperations(...a),
     setOperationEligibility: (...a: unknown[]) => mockSetOperationEligibility(...a),
+    getOperationCounts: (...a: unknown[]) => mockGetOperationCounts(...a),
     listTools: (...a: unknown[]) => mockListTools(...a),
     getToolApis: (...a: unknown[]) => mockGetToolApis(...a),
     createTool: (...a: unknown[]) => mockCreateTool(...a),
@@ -44,6 +46,16 @@ import ToolsTab from "@/app/chat/api-tools/components/ToolsTab";
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // Default: counts endpoint returns a stable shape so ApisTab can mount
+  // without a separate setup line in every test. Tests that care about
+  // specific numbers override with mockResolvedValueOnce.
+  mockGetOperationCounts.mockResolvedValue({
+    platform: "seller_panel",
+    total: 357,
+    active: 258,
+    deprecated: 99,
+    by_module: { Order: { total: 119, active: 98, deprecated: 21 } },
+  });
 });
 
 afterEach(() => {
@@ -95,7 +107,7 @@ describe("ApisTab", () => {
       { module_name: "Order", display_name: "Orders", display_order: 20 },
     ]);
     mockListAdminOperations.mockResolvedValueOnce([
-      { id: 1, http_method: "GET", path: "/api/v1/orders/show/{id}", display_order: null, tool_name: null, hit_count_7d: 100, ai_platform_eligible_api: true, read_write_type: "READ", risk_level: "low" },
+      { id: 1, http_method: "GET", path: "/api/v1/orders/show/{id}", display_order: null, tool_name: null, hit_count_7d: 100, ai_platform_eligible_api: true, read_write_type: "READ", risk_level: "low", deprecated: false, elk_deprecated_api: false },
     ]);
     render(<ApisTab />);
     await waitFor(() => {
@@ -112,7 +124,7 @@ describe("ApisTab", () => {
       { module_name: "Order", display_name: "Orders", display_order: 20 },
     ]);
     mockListAdminOperations.mockResolvedValueOnce([
-      { id: 1, http_method: "GET", path: "/api/v1/orders/show/{id}", display_order: null, tool_name: null, hit_count_7d: 100, ai_platform_eligible_api: true, read_write_type: "READ", risk_level: "low" },
+      { id: 1, http_method: "GET", path: "/api/v1/orders/show/{id}", display_order: null, tool_name: null, hit_count_7d: 100, ai_platform_eligible_api: true, read_write_type: "READ", risk_level: "low", deprecated: false, elk_deprecated_api: false },
     ]);
     render(<ApisTab />);
     await waitFor(() => screen.getByText("/api/v1/orders/show/{id}"));
@@ -127,6 +139,50 @@ describe("ApisTab", () => {
     render(<ApisTab />);
     await waitFor(() => {
       expect(screen.getByText(/DB down/i)).toBeInTheDocument();
+    });
+  });
+
+  it("deprecated rows hidden by default; toggle reveals + adds badge", async () => {
+    mockListAdminModules.mockResolvedValueOnce([
+      { module_name: "Order", display_name: "Orders", display_order: 20 },
+    ]);
+    mockListAdminOperations.mockResolvedValueOnce([
+      // Active row — should always be visible.
+      { id: 1, http_method: "GET",  path: "/api/v1/orders/active",     display_order: null, tool_name: null, hit_count_7d: 100, ai_platform_eligible_api: true, read_write_type: "READ", risk_level: "low", deprecated: false, elk_deprecated_api: false },
+      // ELK-derived deprecated — hidden by default.
+      { id: 2, http_method: "GET",  path: "/api/v1/orders/dead-route", display_order: null, tool_name: null, hit_count_7d: 0,   ai_platform_eligible_api: false, read_write_type: "READ", risk_level: "low", deprecated: false, elk_deprecated_api: true },
+      // Curator-marked deprecated — hidden by default.
+      { id: 3, http_method: "POST", path: "/api/v1/orders/old-flow",   display_order: null, tool_name: null, hit_count_7d: 5,   ai_platform_eligible_api: false, read_write_type: "WRITE", risk_level: "low", deprecated: true,  elk_deprecated_api: false },
+    ]);
+    render(<ApisTab />);
+    await waitFor(() => screen.getByText("/api/v1/orders/active"));
+    // Default: only the active row visible.
+    expect(screen.getByText("/api/v1/orders/active")).toBeInTheDocument();
+    expect(screen.queryByText("/api/v1/orders/dead-route")).not.toBeInTheDocument();
+    expect(screen.queryByText("/api/v1/orders/old-flow")).not.toBeInTheDocument();
+    // Toggle "Show deprecated" — deprecated rows appear with badge.
+    fireEvent.click(screen.getByLabelText(/Show deprecated/i));
+    await waitFor(() => screen.getByText("/api/v1/orders/dead-route"));
+    expect(screen.getByText("/api/v1/orders/old-flow")).toBeInTheDocument();
+    // 2 deprecated badges rendered (one per deprecated row).
+    expect(screen.getAllByText(/^deprecated$/i).length).toBe(2);
+  });
+
+  it("renders left counts panel populated from getOperationCounts", async () => {
+    mockListAdminModules.mockResolvedValueOnce([
+      { module_name: "Order", display_name: "Orders", display_order: 20 },
+    ]);
+    mockListAdminOperations.mockResolvedValueOnce([]);
+    // beforeEach default mocks counts → platform 357 / 258 active / 99 dep
+    //                                   module Order 119 / 98 / 21
+    render(<ApisTab />);
+    await waitFor(() => {
+      expect(screen.getByText("357")).toBeInTheDocument();   // platform total
+      expect(screen.getByText("258")).toBeInTheDocument();   // platform active
+      expect(screen.getByText("99 dep")).toBeInTheDocument(); // platform deprecated
+      expect(screen.getByText("119")).toBeInTheDocument();   // module total
+      expect(screen.getByText("98")).toBeInTheDocument();    // module active
+      expect(screen.getByText("21 dep")).toBeInTheDocument(); // module deprecated
     });
   });
 
@@ -145,6 +201,8 @@ describe("ApisTab", () => {
         ai_platform_eligible_api: false,
         read_write_type: "WRITE",
         risk_level: "medium",
+        deprecated: false,
+        elk_deprecated_api: false,
       },
     ]);
     mockSetOperationEligibility.mockResolvedValueOnce({
