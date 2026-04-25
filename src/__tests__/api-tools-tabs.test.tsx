@@ -10,6 +10,7 @@ const mockListAdminModules = vi.fn();
 const mockReorderModules = vi.fn();
 const mockListAdminOperations = vi.fn();
 const mockReorderOperations = vi.fn();
+const mockSetOperationEligibility = vi.fn();
 const mockListTools = vi.fn();
 const mockGetToolApis = vi.fn();
 const mockCreateTool = vi.fn();
@@ -27,6 +28,7 @@ vi.mock("@/lib/aiplatformkb-api", async () => {
     reorderModules: (...a: unknown[]) => mockReorderModules(...a),
     listAdminOperations: (...a: unknown[]) => mockListAdminOperations(...a),
     reorderOperations: (...a: unknown[]) => mockReorderOperations(...a),
+    setOperationEligibility: (...a: unknown[]) => mockSetOperationEligibility(...a),
     listTools: (...a: unknown[]) => mockListTools(...a),
     getToolApis: (...a: unknown[]) => mockGetToolApis(...a),
     createTool: (...a: unknown[]) => mockCreateTool(...a),
@@ -93,7 +95,7 @@ describe("ApisTab", () => {
       { module_name: "Order", display_name: "Orders", display_order: 20 },
     ]);
     mockListAdminOperations.mockResolvedValueOnce([
-      { id: 1, http_method: "GET", path: "/api/v1/orders/show/{id}", display_order: null, tool_name: null, hit_count_7d: 100 },
+      { id: 1, http_method: "GET", path: "/api/v1/orders/show/{id}", display_order: null, tool_name: null, hit_count_7d: 100, ai_platform_eligible_api: true, read_write_type: "READ", risk_level: "low" },
     ]);
     render(<ApisTab />);
     await waitFor(() => {
@@ -110,7 +112,7 @@ describe("ApisTab", () => {
       { module_name: "Order", display_name: "Orders", display_order: 20 },
     ]);
     mockListAdminOperations.mockResolvedValueOnce([
-      { id: 1, http_method: "GET", path: "/api/v1/orders/show/{id}", display_order: null, tool_name: null, hit_count_7d: 100 },
+      { id: 1, http_method: "GET", path: "/api/v1/orders/show/{id}", display_order: null, tool_name: null, hit_count_7d: 100, ai_platform_eligible_api: true, read_write_type: "READ", risk_level: "low" },
     ]);
     render(<ApisTab />);
     await waitFor(() => screen.getByText("/api/v1/orders/show/{id}"));
@@ -125,6 +127,42 @@ describe("ApisTab", () => {
     render(<ApisTab />);
     await waitFor(() => {
       expect(screen.getByText(/DB down/i)).toBeInTheDocument();
+    });
+  });
+
+  it("eligibility toggle flips the per-row state and posts PATCH", async () => {
+    mockListAdminModules.mockResolvedValueOnce([
+      { module_name: "Order", display_name: "Orders", display_order: 20 },
+    ]);
+    mockListAdminOperations.mockResolvedValueOnce([
+      {
+        id: 1744,
+        http_method: "POST",
+        path: "/api/v1/auth/logout",
+        display_order: null,
+        tool_name: "auth_logout",
+        hit_count_7d: 64378,
+        ai_platform_eligible_api: false,
+        read_write_type: "WRITE",
+        risk_level: "medium",
+      },
+    ]);
+    mockSetOperationEligibility.mockResolvedValueOnce({
+      id: 1744,
+      ai_platform_eligible_api: true,
+    });
+    render(<ApisTab />);
+    await waitFor(() => screen.getByText("/api/v1/auth/logout"));
+    // Pre-click — row label says "hidden". Target via title attribute
+    // because dnd-kit wraps the whole row in a role=button for keyboard
+    // accessibility, so getByRole("button") would be ambiguous.
+    expect(screen.getByText("hidden")).toBeInTheDocument();
+    const toggleBtn = screen.getByTitle(/Hidden from \/docs\/ai-platform/i);
+    fireEvent.click(toggleBtn);
+    // Optimistic flip — label switches to "visible" before the await resolves.
+    expect(screen.getByText("visible")).toBeInTheDocument();
+    await waitFor(() => {
+      expect(mockSetOperationEligibility).toHaveBeenCalledWith(1744, { eligible: true });
     });
   });
 });

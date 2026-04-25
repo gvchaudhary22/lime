@@ -17,6 +17,7 @@ import {
   reorderModules,
   reorderOperations,
   reorderToolApis,
+  setOperationEligibility,
 } from "@/lib/aiplatformkb-api";
 
 const mockFetch = vi.fn();
@@ -122,6 +123,18 @@ describe("operations client", () => {
       module: "Order",
       ordered_ids: [101, 102],
     });
+  });
+
+  it("setOperationEligibility PATCHes /admin/operations/{id}/eligibility", async () => {
+    mockFetch.mockResolvedValueOnce(
+      okJson({ id: 1744, ai_platform_eligible_api: true })
+    );
+    const r = await setOperationEligibility(1744, { eligible: true });
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(String(url)).toMatch(/\/admin\/operations\/1744\/eligibility$/);
+    expect((init as RequestInit).method).toBe("PATCH");
+    expect(JSON.parse((init as RequestInit).body as string)).toEqual({ eligible: true });
+    expect(r.ai_platform_eligible_api).toBe(true);
   });
 });
 

@@ -142,6 +142,8 @@ import type {
   ReorderOperationsResponse,
   ReorderToolApisPayload,
   ReorderToolApisResponse,
+  SetEligibilityPayload,
+  SetEligibilityResponse,
   ToolMember,
 } from "@/types/api-tools";
 
@@ -209,6 +211,17 @@ export function reorderOperations(
   return jsonRequest<ReorderOperationsResponse>(
     "POST",
     `/admin/operations/reorder`,
+    payload
+  );
+}
+
+export function setOperationEligibility(
+  operationId: number,
+  payload: SetEligibilityPayload
+): Promise<SetEligibilityResponse> {
+  return jsonRequest<SetEligibilityResponse>(
+    "PATCH",
+    `/admin/operations/${operationId}/eligibility`,
     payload
   );
 }
@@ -290,6 +303,7 @@ export const aiplatformkbApi = {
   reorderModules,
   listAdminOperations,
   reorderOperations,
+  setOperationEligibility,
   listTools,
   createTool,
   patchTool,

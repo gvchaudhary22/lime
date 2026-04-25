@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AlertTriangle, GripVertical, Loader2, Save } from "lucide-react";
+import { AlertTriangle, Eye, EyeOff, GripVertical, Loader2, Save } from "lucide-react";
 import {
   AiplatformkbApiError,
   listAdminModules,
   listAdminOperations,
   reorderOperations,
+  setOperationEligibility,
 } from "@/lib/aiplatformkb-api";
 import type { AdminModule, AdminOperation } from "@/types/api-tools";
 import SortableList from "@/components/primitives/SortableList";
@@ -94,6 +95,32 @@ export default function ApisTab() {
     }
   };
 
+  // Per-row eligibility toggle. Optimistic update with rollback on error.
+  // Flipping eligibility is independent of the reorder save flow — it
+  // commits per-click, no global Save button.
+  const handleToggleEligibility = async (op: AdminOperation) => {
+    if (!localOps) return;
+    const newFlag = !op.ai_platform_eligible_api;
+    // Optimistic flip in BOTH local + server snapshots so the row
+    // immediately reflects the new state and Save isn't accidentally
+    // dirty-marked by the change.
+    const flip = (list: AdminOperation[]) =>
+      list.map((o) => (o.id === op.id ? { ...o, ai_platform_eligible_api: newFlag } : o));
+    setLocalOps(flip);
+    setServerOps((prev) => (prev ? flip(prev) : prev));
+
+    try {
+      await setOperationEligibility(op.id, { eligible: newFlag });
+    } catch (err) {
+      // Rollback both copies.
+      const revert = (list: AdminOperation[]) =>
+        list.map((o) => (o.id === op.id ? { ...o, ai_platform_eligible_api: !newFlag } : o));
+      setLocalOps(revert);
+      setServerOps((prev) => (prev ? revert(prev) : prev));
+      setError(_msg(err));
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
@@ -172,14 +199,41 @@ export default function ApisTab() {
                   (isDragging ? "bg-zinc-800/40" : "")
                 }
               >
-                <div className="flex items-center gap-3">
-                  <GripVertical className="h-4 w-4 text-zinc-600" />
+                <div className="flex items-center gap-3 min-w-0">
+                  <GripVertical className="h-4 w-4 text-zinc-600 shrink-0" />
                   <span className={_methodBadge(op.http_method)}>{op.http_method}</span>
-                  <code className="text-xs text-zinc-300">{op.path}</code>
+                  <code className="text-xs text-zinc-300 truncate">{op.path}</code>
                 </div>
-                <span className="text-xs text-zinc-500">
-                  order {op.display_order ?? "—"} · hits {op.hit_count_7d ?? 0}
-                </span>
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="text-xs text-zinc-500">
+                    order {op.display_order ?? "—"} · hits {op.hit_count_7d ?? 0}
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleToggleEligibility(op);
+                    }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    title={
+                      op.ai_platform_eligible_api
+                        ? "Visible on /docs/ai-platform — click to hide"
+                        : "Hidden from /docs/ai-platform — click to expose"
+                    }
+                    className={
+                      "flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors " +
+                      (op.ai_platform_eligible_api
+                        ? "bg-emerald-900/30 text-emerald-300 hover:bg-emerald-900/50"
+                        : "bg-zinc-800 text-zinc-400 hover:bg-zinc-700")
+                    }
+                  >
+                    {op.ai_platform_eligible_api ? (
+                      <Eye className="h-3 w-3" />
+                    ) : (
+                      <EyeOff className="h-3 w-3" />
+                    )}
+                    {op.ai_platform_eligible_api ? "visible" : "hidden"}
+                  </button>
+                </div>
               </div>
             )}
           />

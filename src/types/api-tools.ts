@@ -29,6 +29,19 @@ export interface AdminOperation {
   display_order: number | null;
   tool_name: string | null;
   hit_count_7d: number | null;
+  // Phase-12 — gated visibility on /docs/ai-platform.
+  ai_platform_eligible_api: boolean;
+  read_write_type: string | null;
+  risk_level: string | null;
+}
+
+export interface SetEligibilityPayload {
+  eligible: boolean;
+}
+
+export interface SetEligibilityResponse {
+  id: number;
+  ai_platform_eligible_api: boolean;
 }
 
 export interface ListOperationsParams {
