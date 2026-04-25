@@ -36,6 +36,7 @@ import {
   FlaskConical,
   Globe,
   GitPullRequest,
+  Wrench,
 } from "lucide-react";
 import { api, Bookmark, Conversation } from "@/lib/api";
 
@@ -162,6 +163,12 @@ export default function Sidebar({ activePage = "chats" }: SidebarProps) {
       label: "PR Feed",
       href: "/chat/pr-feed",
       id: "pr-feed",
+    },
+    {
+      icon: Wrench,
+      label: "API Tools",
+      href: "/chat/api-tools",
+      id: "api-tools",
     },
     {
       icon: Map,
