@@ -118,10 +118,188 @@ export function getFilterOptions(): Promise<FilterOptions> {
   return getJson<FilterOptions>(`/api/v1/prs/filters/options`);
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 12 — curation admin (BFRS-2/aiplatformkb#<NNN>) + public tools.json.
+// Same auth-less convention as PR Feed: NO Authorization header is ever
+// attached. The deployment boundary (firewall around aiplatformkb :9000)
+// is the gate; see PHASE-12-PLAN.md §2.5.
+// ─────────────────────────────────────────────────────────────────────────
+
+import type {
+  AddApiToToolPayload,
+  AddApiToToolResponse,
+  AdminModule,
+  AdminOperation,
+  AdminTool,
+  CreateToolPayload,
+  ListOperationsParams,
+  PatchToolPayload,
+  PublicToolsResponse,
+  RemoveApiFromToolResponse,
+  ReorderModulesPayload,
+  ReorderModulesResponse,
+  ReorderOperationsPayload,
+  ReorderOperationsResponse,
+  ReorderToolApisPayload,
+  ReorderToolApisResponse,
+  ToolMember,
+} from "@/types/api-tools";
+
+async function jsonRequest<T>(
+  method: "POST" | "PATCH" | "DELETE",
+  path: string,
+  body?: unknown
+): Promise<T> {
+  const url = `${BASE_URL}${path}`;
+  const init: RequestInit = {
+    method,
+    headers: { Accept: "application/json" },
+  };
+  if (body !== undefined) {
+    init.headers = { ...init.headers, "Content-Type": "application/json" };
+    init.body = JSON.stringify(body);
+  }
+  const res = await fetch(url, init);
+
+  let payload: unknown = null;
+  try {
+    payload = await res.json();
+  } catch {
+    payload = null;
+  }
+
+  if (!res.ok) {
+    const detail =
+      (payload && typeof payload === "object" && "detail" in payload
+        ? String((payload as { detail: unknown }).detail)
+        : null) || `Request failed: ${res.status}`;
+    throw new AiplatformkbApiError(res.status, payload, detail);
+  }
+  return payload as T;
+}
+
+// ── Modules ──────────────────────────────────────────────────────────────
+
+export function listAdminModules(): Promise<AdminModule[]> {
+  return getJson<AdminModule[]>(`/admin/modules`);
+}
+
+export function reorderModules(
+  payload: ReorderModulesPayload
+): Promise<ReorderModulesResponse> {
+  return jsonRequest<ReorderModulesResponse>(
+    "POST",
+    `/admin/modules/reorder`,
+    payload
+  );
+}
+
+// ── Operations ───────────────────────────────────────────────────────────
+
+export function listAdminOperations(
+  params: ListOperationsParams
+): Promise<AdminOperation[]> {
+  const qs = buildQuery({ platform: params.platform, module: params.module });
+  return getJson<AdminOperation[]>(`/admin/operations${qs}`);
+}
+
+export function reorderOperations(
+  payload: ReorderOperationsPayload
+): Promise<ReorderOperationsResponse> {
+  return jsonRequest<ReorderOperationsResponse>(
+    "POST",
+    `/admin/operations/reorder`,
+    payload
+  );
+}
+
+// ── Tools CRUD ───────────────────────────────────────────────────────────
+
+export function listTools(): Promise<AdminTool[]> {
+  return getJson<AdminTool[]>(`/admin/tools`);
+}
+
+export function createTool(payload: CreateToolPayload): Promise<AdminTool> {
+  return jsonRequest<AdminTool>("POST", `/admin/tools`, payload);
+}
+
+export function patchTool(
+  toolId: number,
+  payload: PatchToolPayload
+): Promise<{ updated: number }> {
+  return jsonRequest<{ updated: number }>("PATCH", `/admin/tools/${toolId}`, payload);
+}
+
+export function archiveTool(toolId: number): Promise<{ archived: number }> {
+  return jsonRequest<{ archived: number }>("DELETE", `/admin/tools/${toolId}`);
+}
+
+export function getToolApis(toolId: number): Promise<ToolMember[]> {
+  return getJson<ToolMember[]>(`/admin/tools/${toolId}/apis`);
+}
+
+// ── Tool↔API M:N membership ──────────────────────────────────────────────
+
+export function addApiToTool(
+  toolId: number,
+  payload: AddApiToToolPayload
+): Promise<AddApiToToolResponse> {
+  return jsonRequest<AddApiToToolResponse>(
+    "POST",
+    `/admin/tools/${toolId}/apis`,
+    payload
+  );
+}
+
+export function removeApiFromTool(
+  toolId: number,
+  apiId: number
+): Promise<RemoveApiFromToolResponse> {
+  return jsonRequest<RemoveApiFromToolResponse>(
+    "DELETE",
+    `/admin/tools/${toolId}/apis/${apiId}`
+  );
+}
+
+export function reorderToolApis(
+  toolId: number,
+  payload: ReorderToolApisPayload
+): Promise<ReorderToolApisResponse> {
+  return jsonRequest<ReorderToolApisResponse>(
+    "POST",
+    `/admin/tools/${toolId}/reorder`,
+    payload
+  );
+}
+
+// ── Public tools.json (used by the AI agent — read-only) ─────────────────
+
+export function listToolsPublic(): Promise<PublicToolsResponse> {
+  return getJson<PublicToolsResponse>(`/api/v1/ai-platform/tools.json`);
+}
+
+// ── Aggregated namespace export ──────────────────────────────────────────
+
 export const aiplatformkbApi = {
+  // PR Feed (read-only — Phase 6).
   listPrs,
   getPrDetail,
   getFilterOptions,
+  // Phase 12 admin.
+  listAdminModules,
+  reorderModules,
+  listAdminOperations,
+  reorderOperations,
+  listTools,
+  createTool,
+  patchTool,
+  archiveTool,
+  getToolApis,
+  addApiToTool,
+  removeApiFromTool,
+  reorderToolApis,
+  // Phase 12 public.
+  listToolsPublic,
 };
 
 export type AiplatformkbApi = typeof aiplatformkbApi;
