@@ -19,6 +19,7 @@ import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import FilterBar from "@/components/pr-feed/FilterBar";
 import PrTable from "@/components/pr-feed/PrTable";
 import Pagination from "@/components/pr-feed/Pagination";
+import RepoSyncButton from "@/components/pr-sync/RepoSyncButton";
 
 const PAGE_SIZE = 50;
 const PROCESSING_STATUSES: ProcessingStatus[] = [
@@ -99,6 +100,9 @@ function PrFeedListPageInner() {
   const [options, setOptions] = useState<FilterOptions | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Phase-13 RepoSyncButton bumps this to refetch the list after discovery.
+  const [refetchTick, setRefetchTick] = useState(0);
+  const refetch = () => setRefetchTick((n) => n + 1);
 
   // Token gate — matches other Lime chat pages.
   useEffect(() => {
@@ -148,7 +152,7 @@ function PrFeedListPageInner() {
     return () => {
       cancelled = true;
     };
-  }, [debouncedFilters, offset]);
+  }, [debouncedFilters, offset, refetchTick]);
 
   // URL querystring sync — push on filter/offset change.
   useEffect(() => {
@@ -178,9 +182,18 @@ function PrFeedListPageInner() {
       <Sidebar activePage="pr-feed" />
       <div className="flex flex-1 flex-col overflow-hidden">
         <div className="border-b border-white/[0.06] px-8 pb-4 pt-6">
-          <div className="mb-2 flex items-center gap-3">
-            <GitPullRequest className="h-6 w-6 text-cyan-400" />
-            <h1 className="text-2xl font-bold text-white">PR Feed</h1>
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <GitPullRequest className="h-6 w-6 text-cyan-400" />
+              <h1 className="text-2xl font-bold text-white">PR Feed</h1>
+            </div>
+            <RepoSyncButton
+              org={filters.org ?? null}
+              repo={filters.repo ?? null}
+              onDiscovered={(count) => {
+                if (count > 0) refetch();
+              }}
+            />
           </div>
           <p className="text-sm text-slate-500">
             Merged PRs processed by sync_kb_from_prs with impact counts per

@@ -3,6 +3,7 @@
 import { ExternalLink } from "lucide-react";
 import type { PrListItem, ProcessingStatus } from "@/types/pr-feed";
 import ImpactCountBadge from "./ImpactCountBadge";
+import PerRowSyncImpactsButton from "@/components/pr-sync/PerRowSyncImpactsButton";
 
 interface Props {
   items: PrListItem[];
@@ -44,6 +45,7 @@ export default function PrTable({ items, onRowClick }: Props) {
           <th className="px-4 py-2 font-medium text-right">Files</th>
           <th className="px-4 py-2 font-medium">Impact</th>
           <th className="px-4 py-2 font-medium">Status</th>
+          <th className="px-4 py-2 font-medium">Sync</th>
           <th className="px-4 py-2" />
         </tr>
       </thead>
@@ -94,6 +96,13 @@ export default function PrTable({ items, onRowClick }: Props) {
                 >
                   {pr.processing_status}
                 </span>
+              </td>
+              <td
+                className="px-4 py-3"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+              >
+                <PerRowSyncImpactsButton prId={pr.id} />
               </td>
               <td className="px-4 py-3 text-right">
                 {pr.pr_url && (

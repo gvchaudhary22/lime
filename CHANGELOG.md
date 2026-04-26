@@ -6,6 +6,48 @@ Format: [Semantic Versioning](https://semver.org/) — `v{milestone}.{phase}` al
 
 ---
 
+## [Unreleased] — feat/phase-13-pr-sync-trigger (Phase 13)
+
+### Feature — Granular per-PR Sync UI on PR Feed (Phase 13)
+
+**Branch**: `gvchaudhary22/lime` → `feat/phase-13-pr-sync-trigger`
+**aiplatformkb cross-link**: `BFRS-2/aiplatformkb` → `feat/phase-13-rebased`
+**Phase**: M1-P13 (granular per-PR sync UI · server-side admin proxy · 2s polling)
+**Tests**: 71 vitest pass on Phase-12+13 surface (was 53; +18 Phase-13 additions: 7 client/hook + 6 list UI + 5 detail UI)
+
+#### Server-side admin proxy (Wave 1C)
+- New catch-all `src/app/api/aiplatformkb/admin/[...path]/route.ts`. Forwards GET/POST/PATCH/DELETE/PUT to upstream aiplatformkb `/admin/*` with `Authorization: Bearer <AIPLATFORMKB_ADMIN_TOKEN>` injected from server env. Token never reaches the browser. Strips client-supplied Authorization + Cookie. 503 fail-closed when env unset; 502 with safe message on upstream errors.
+- Client `aiplatformkb-api.ts` routes `/admin/*` through the proxy prefix; public endpoints (`/api/v1/prs*`, `/api/v1/ai-platform/*`) stay direct.
+
+#### Client (Wave 3A)
+- `src/types/pr-sync.ts` — full type set (SyncLifecycleStatus enum, 7 request/response shapes).
+- `src/lib/aiplatformkb-api.ts` — 7 new client functions: `discoverPrs`, `previewClassify`, `triggerClassify`, `previewPopulate`, `triggerPopulate`, `getPrSyncStatus`, `cancelPrSync`. All routed through Wave-1C proxy.
+- `src/hooks/useSyncRowStatus.ts` — 2s polling hook (configurable `intervalMs`). Stops automatically when both classify_status AND populate_status reach terminal (done/failed/cancelled). Strict-mode-safe alive guard.
+
+#### List page UI (Wave 3B)
+- `RepoSyncButton` (header on `/chat/pr-feed`) — disabled until org+repo filter set. Triggers `discoverPrs`; refetches list on success.
+- `PerRowSyncImpactsButton` (new "Sync" column in PrTable) — preview → confirm → polling. Cached_hit short-circuits straight into status badge.
+- `SyncProgressInlineSummary` — terminal-state badges with $-formatted cost.
+- Page integration: `refetchTick` state added to PR list `useEffect` deps; new column added to PrTable.
+
+#### Detail page UI (Wave 3C)
+- `RunPopulateButton` on `/chat/pr-feed/[prId]` — disabled until `classify_status='done'`; tooltip explains why; preview → confirm → trigger.
+- `PopulateProgressBanner` — sticky-top while `populate_status='running'`; surfaces cumulative cost; Cancel button calls `cancelPrSync`.
+- Page wires `useSyncRowStatus(prIdNum, 2000)` and renders banner + button beside the Phase-6 PR header card.
+
+#### Env config
+- `.env.local.example` adds `AIPLATFORMKB_ADMIN_TOKEN` (server-only, NOT NEXT_PUBLIC_) + optional `AIPLATFORMKB_URL` split-deploy override. Token mismatch with aiplatformkb upstream → all `/admin/*` calls return 401 (proxied through Lime).
+
+#### Test infra
+- 18 new vitest cases across 3 files. Pre-existing 4 failing test files (`dryrun`, `api`, `build-health`, `components_extended`) unchanged — out of scope per Phase-6 STATE.md.
+
+#### Out of scope (deferred to v2)
+- WebSocket / SSE replacement for 2s poll (sufficient at <5 active curators)
+- "Sync All" batch button
+- Cron-driven auto-sync from frontend
+
+---
+
 ## [Unreleased] — feat/phase-12-api-tools (Phase 12)
 
 ### Feature — "API Tools" curation page (Phase 12)

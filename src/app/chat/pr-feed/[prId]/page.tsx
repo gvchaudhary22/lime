@@ -26,6 +26,9 @@ import ImpactsFilterBar from "@/components/pr-feed/ImpactsFilterBar";
 import ImpactsTable from "@/components/pr-feed/ImpactsTable";
 import ImpactDetailDrawer from "@/components/pr-feed/ImpactDetailDrawer";
 import Pagination from "@/components/pr-feed/Pagination";
+import RunPopulateButton from "@/components/pr-sync/RunPopulateButton";
+import PopulateProgressBanner from "@/components/pr-sync/PopulateProgressBanner";
+import { useSyncRowStatus } from "@/hooks/useSyncRowStatus";
 
 const PAGE_SIZE = 50;
 
@@ -139,6 +142,13 @@ function PrFeedDetailPageInner() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [drawerImpact, setDrawerImpact] = useState<ImpactItem | null>(null);
+  // Phase-13 Wave 3C — sync lifecycle for this PR. Polling tears down on
+  // terminal states inside the hook.
+  const prIdNum = useMemo(() => {
+    const n = Number(prId);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  }, [prId]);
+  const { status: syncStatus } = useSyncRowStatus(prIdNum, 2000);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -237,9 +247,19 @@ function PrFeedDetailPageInner() {
             </div>
           ) : data ? (
             <>
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-                <PrHeaderCard pr={data.pr} />
-                <SyncRunSummary syncRun={data.sync_run} />
+              <PopulateProgressBanner status={syncStatus} />
+              <div className="flex items-start justify-between gap-4">
+                <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-2">
+                  <PrHeaderCard pr={data.pr} />
+                  <SyncRunSummary syncRun={data.sync_run} />
+                </div>
+                {prIdNum != null && (
+                  <RunPopulateButton
+                    prId={prIdNum}
+                    classifyStatus={syncStatus?.classify_status ?? null}
+                    populateStatus={syncStatus?.populate_status ?? null}
+                  />
+                )}
               </div>
 
               <ImpactsFilterBar
