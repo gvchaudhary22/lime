@@ -319,6 +319,70 @@ export function listToolsPublic(): Promise<PublicToolsResponse> {
   return getJson<PublicToolsResponse>(`/api/v1/ai-platform/tools.json`);
 }
 
+// ─────────────────────────────────────────────────────────────────────────
+// Phase 13 — granular per-PR sync surface (BFRS-2/aiplatformkb#<NNN>).
+// All admin-gated; routed through the same /api/aiplatformkb proxy as
+// /admin/* — token injection is the proxy's job, not this client's.
+// ─────────────────────────────────────────────────────────────────────────
+
+import type {
+  CancelResponse,
+  ClassifyPreview,
+  ClassifyResponse,
+  PopulatePreview,
+  PopulateResponse,
+  PrSyncDiscoverRequest,
+  PrSyncDiscoverResponse,
+  PrSyncStatus,
+} from "@/types/pr-sync";
+
+export function discoverPrs(
+  payload: PrSyncDiscoverRequest
+): Promise<PrSyncDiscoverResponse> {
+  return jsonRequest<PrSyncDiscoverResponse>(
+    "POST",
+    `/admin/pr-sync/discover`,
+    payload
+  );
+}
+
+export function previewClassify(prId: number): Promise<ClassifyPreview> {
+  return getJson<ClassifyPreview>(
+    `/admin/pr-sync/prs/${prId}/classify/preview`
+  );
+}
+
+export function triggerClassify(prId: number): Promise<ClassifyResponse> {
+  return jsonRequest<ClassifyResponse>(
+    "POST",
+    `/admin/pr-sync/prs/${prId}/classify`
+  );
+}
+
+export function previewPopulate(prId: number): Promise<PopulatePreview> {
+  return getJson<PopulatePreview>(
+    `/admin/pr-sync/prs/${prId}/populate/preview`
+  );
+}
+
+export function triggerPopulate(prId: number): Promise<PopulateResponse> {
+  return jsonRequest<PopulateResponse>(
+    "POST",
+    `/admin/pr-sync/prs/${prId}/populate`
+  );
+}
+
+export function getPrSyncStatus(prId: number): Promise<PrSyncStatus> {
+  return getJson<PrSyncStatus>(`/admin/pr-sync/prs/${prId}`);
+}
+
+export function cancelPrSync(prId: number): Promise<CancelResponse> {
+  return jsonRequest<CancelResponse>(
+    "POST",
+    `/admin/pr-sync/prs/${prId}/cancel`
+  );
+}
+
 // ── Aggregated namespace export ──────────────────────────────────────────
 
 export const aiplatformkbApi = {
@@ -343,6 +407,14 @@ export const aiplatformkbApi = {
   reorderToolApis,
   // Phase 12 public.
   listToolsPublic,
+  // Phase 13 sync.
+  discoverPrs,
+  previewClassify,
+  triggerClassify,
+  previewPopulate,
+  triggerPopulate,
+  getPrSyncStatus,
+  cancelPrSync,
 };
 
 export type AiplatformkbApi = typeof aiplatformkbApi;
