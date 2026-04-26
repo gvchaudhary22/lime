@@ -19,6 +19,21 @@ import type {
 const BASE_URL =
   process.env.NEXT_PUBLIC_AIPLATFORMKB_URL || "http://localhost:8000";
 
+// Phase 13 Wave 1C — admin calls go through the Lime server-side proxy at
+// /api/aiplatformkb/admin/[...path], which injects AIPLATFORMKB_ADMIN_TOKEN
+// from server env. The token never reaches the browser. Public endpoints
+// (/api/v1/prs*, /api/v1/ai-platform/*) stay direct against BASE_URL.
+const ADMIN_PROXY_PREFIX = "/api/aiplatformkb";
+
+function adminUrl(path: string): string {
+  // path always starts with "/admin/..."; the proxy is mounted under
+  // /api/aiplatformkb/admin/[...rest], so the final URL is
+  // /api/aiplatformkb/admin/<rest>. Browser fetch resolves it against
+  // the current origin (Lime). For SSR, NEXT_PUBLIC_LIME_URL would be
+  // needed — but admin operations are all client-driven in v1.
+  return `${ADMIN_PROXY_PREFIX}${path}`;
+}
+
 export class AiplatformkbApiError extends Error {
   status: number;
   body: unknown;
@@ -50,8 +65,11 @@ function buildQuery(
 }
 
 async function getJson<T>(path: string): Promise<T> {
-  const url = `${BASE_URL}${path}`;
-  // Note: no Authorization header. aiplatformkb is auth-less in v1.
+  // /admin/* routes through Lime server-side proxy (Phase 13 Wave 1C);
+  // public endpoints stay direct against aiplatformkb.
+  const url = path.startsWith("/admin/") ? adminUrl(path) : `${BASE_URL}${path}`;
+  // Note: client never attaches Authorization. The proxy injects it for
+  // /admin/* calls; public endpoints remain auth-less per Phase-6 contract.
   const res = await fetch(url, {
     method: "GET",
     headers: { Accept: "application/json" },
@@ -153,7 +171,9 @@ async function jsonRequest<T>(
   path: string,
   body?: unknown
 ): Promise<T> {
-  const url = `${BASE_URL}${path}`;
+  // /admin/* routes through Lime server-side proxy (Phase 13 Wave 1C);
+  // public endpoints stay direct.
+  const url = path.startsWith("/admin/") ? adminUrl(path) : `${BASE_URL}${path}`;
   const init: RequestInit = {
     method,
     headers: { Accept: "application/json" },
