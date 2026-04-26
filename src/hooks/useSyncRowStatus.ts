@@ -24,7 +24,6 @@ export interface UseSyncRowStatus {
   status: PrSyncStatus | null;
   isPolling: boolean;
   error: string | null;
-  refresh: () => Promise<void>;
 }
 
 export function useSyncRowStatus(
@@ -77,6 +76,5 @@ export function useSyncRowStatus(
     status,
     isPolling,
     error,
-    refresh: fetchOnce,
   };
 }

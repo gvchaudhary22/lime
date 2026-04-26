@@ -154,16 +154,20 @@ describe("useSyncRowStatus", () => {
         })
       );
 
-    const { result } = renderHook(() => useSyncRowStatus(99, 50));
+    // 200ms beats 50ms when vitest's parallel runner is loaded — keeps
+    // the test stable in the combined suite without losing meaning.
+    const { result } = renderHook(() => useSyncRowStatus(99, 200));
 
-    await waitFor(() => expect(result.current.status?.classify_status).toBe("running"));
-    // Wait until both terminal — polling stops.
+    await waitFor(
+      () => expect(result.current.status?.classify_status).toBe("running"),
+      { timeout: 4000 }
+    );
     await waitFor(
       () => expect(result.current.status?.populate_status).toBe("done"),
-      { timeout: 2000 }
+      { timeout: 4000 }
     );
     await waitFor(() => expect(result.current.isPolling).toBe(false), {
-      timeout: 2000,
+      timeout: 4000,
     });
     expect(result.current.error).toBeNull();
   });

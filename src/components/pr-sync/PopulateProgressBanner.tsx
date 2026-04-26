@@ -19,11 +19,15 @@ export default function PopulateProgressBanner({ status, onCancelled }: Props) {
   if (!status) return null;
   if (status.populate_status !== "running") return null;
 
+  // Phase-13 Wave 4B TS CRITICAL — snapshot pr_id at handler creation
+  // so a parent re-render with a stale or null `status` mid-cancel can't
+  // direct cancelPrSync at the wrong PR (or skip the call entirely).
+  const targetPrId = status.pr_id;
+
   async function handleCancel() {
-    if (!status) return;
     setBusy(true);
     try {
-      await cancelPrSync(status.pr_id);
+      await cancelPrSync(targetPrId);
       onCancelled?.();
     } finally {
       setBusy(false);
