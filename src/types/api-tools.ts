@@ -138,6 +138,74 @@ export interface ReorderToolApisResponse {
   reordered: number;
 }
 
+// ── Operation details drawer (Phase 16) ─────────────────────────────────
+// Mirrors the backend response of GET /admin/operations/{id}/details.
+// Read-only deep-read for the lime "See details" drawer in ApisTab.
+
+export interface ElkPerIndexBreakdown {
+  index_name: string;
+  hits_7d: number;
+}
+
+export interface ElkDetails {
+  elk_host: string | null;
+  elk_index: string | null;
+  primary_index: string | null;
+  hit_count_7d: number | null;
+  hit_count_updated_at: string | null;        // ISO 8601 from backend
+  elk_deprecated_api: boolean;
+  per_day: Record<string, number>;            // day_1..day_7 → count (NULL days omitted)
+  per_index_breakdown: ElkPerIndexBreakdown[];
+  status_breakdown: Record<string, number> | null;
+  refreshed_at: string | null;                // ISO 8601 from backend
+}
+
+export interface OperationDetails {
+  // Identity
+  id: number;
+  api_id: string;
+  repo_name: string | null;
+  base_url: string | null;
+  // Routing
+  http_method: string;
+  path: string;
+  api_version: string | null;
+  auth_type: string | null;
+  auth_scope: string | null;
+  rate_limit_rpm: number | null;
+  // Classification
+  platform: string;
+  module: string;
+  sub_module: string | null;
+  agent: string | null;
+  persona: string | null;
+  intent: string | null;
+  seller_menu_key: string | null;
+  ui_section: string | null;
+  ui_subsection: string | null;
+  page_url: string | null;
+  // Code provenance
+  controller: string | null;
+  source_file: string | null;
+  tool_name: string | null;
+  description: string | null;
+  // Risk + curation
+  approval_mode: string | null;
+  risk_level: string | null;
+  read_write_type: string | null;
+  deprecated: boolean;
+  elk_deprecated_api: boolean;
+  ai_platform_eligible_api: boolean;
+  display_order: number | null;
+  reject_description: string | null;
+  // ELK details (joined)
+  elk: ElkDetails;
+  // Metadata
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+
 // ── Public tools.json (consumed by the AI agent) ─────────────────────────
 
 export interface PublicToolApi {

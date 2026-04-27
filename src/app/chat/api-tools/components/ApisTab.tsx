@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Eye, EyeOff, GripVertical, Loader2, Save } from "lucide-react";
+import { AlertTriangle, Eye, EyeOff, GripVertical, Info, Loader2, Save } from "lucide-react";
 import {
   AiplatformkbApiError,
   getOperationCounts,
@@ -10,8 +10,10 @@ import {
   reorderOperations,
   setOperationEligibility,
 } from "@/lib/aiplatformkb-api";
+import { visibilityTooltip } from "@/lib/api-tools-copy";
 import type { AdminModule, AdminOperation, OperationCountsResponse } from "@/types/api-tools";
 import SortableList from "@/components/primitives/SortableList";
+import OperationDetailsDrawer from "@/components/api-tools/OperationDetailsDrawer";
 
 const PLATFORMS = [
   "seller_panel", "icrm_platform", "app_platform", "oneapp", "ondc",
@@ -39,6 +41,9 @@ export default function ApisTab() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
+  // Phase 16 — id of the operation currently shown in the side drawer.
+  // null = drawer closed. Set via the per-row "Details" button.
+  const [detailsOpId, setDetailsOpId] = useState<number | null>(null);
 
   // TS-H2 — alive-guard prevents setState on unmounted component if
   // user clicks away before the fetch resolves. Functional-updater on
@@ -314,17 +319,29 @@ export default function ApisTab() {
                     <span className="text-xs text-zinc-500">
                       order {op.display_order ?? "—"} · hits {op.hit_count_7d ?? 0}
                     </span>
+                    {/* Phase 16 — Details button. stopPropagation defends the
+                        SortableList drag pointer-handler underneath (same
+                        defense as the eligibility toggle below). */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDetailsOpId(op.id);
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      title={`See full details for #${op.id}`}
+                      data-testid={`details-btn-${op.id}`}
+                      className="flex items-center gap-1 rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
+                    >
+                      <Info className="h-3 w-3" />
+                      Details
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleToggleEligibility(op);
                       }}
                       onPointerDown={(e) => e.stopPropagation()}
-                      title={
-                        op.ai_platform_eligible_api
-                          ? "Visible on /docs/ai-platform — click to hide"
-                          : "Hidden from /docs/ai-platform — click to expose"
-                      }
+                      title={visibilityTooltip(op.ai_platform_eligible_api)}
                       className={
                         "flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors " +
                         (op.ai_platform_eligible_api
@@ -346,6 +363,16 @@ export default function ApisTab() {
           />
         </div>
       )}
+
+      {/* Phase 16 — Details drawer. Conditionally rendered so the fetch
+          effect inside is bound to the operation id and tears down on
+          close. Mounting at sibling level (not inside SortableList) means
+          the drawer's overlay/content cannot accidentally inherit drag
+          state from a row underneath. */}
+      <OperationDetailsDrawer
+        operationId={detailsOpId}
+        onClose={() => setDetailsOpId(null)}
+      />
     </div>
   );
 }
