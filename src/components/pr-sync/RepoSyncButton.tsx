@@ -17,6 +17,7 @@ interface Props {
 export default function RepoSyncButton({ org, repo, onDiscovered }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [branch, setBranch] = useState<string>("");
   const disabled = !org || !repo || busy;
 
   async function handle() {
@@ -24,7 +25,12 @@ export default function RepoSyncButton({ org, repo, onDiscovered }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const r = await discoverPrs({ org, repo });
+      const trimmed = branch.trim();
+      const r = await discoverPrs({
+        org,
+        repo,
+        ...(trimmed ? { base_branch: trimmed } : {}),
+      });
       onDiscovered?.(r.discovered_count, r.discovered_pr_ids);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "discover failed");
@@ -35,6 +41,17 @@ export default function RepoSyncButton({ org, repo, onDiscovered }: Props) {
 
   return (
     <div className="flex items-center gap-2">
+      <input
+        type="text"
+        value={branch}
+        onChange={(e) => setBranch(e.target.value)}
+        placeholder="master"
+        disabled={disabled}
+        maxLength={128}
+        aria-label="Base branch (default: master)"
+        title="Base branch to discover PRs against — leave blank to use master"
+        className="w-32 rounded border border-white/[0.06] bg-[#0a0f1e] px-2 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:border-cyan-500/40 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+      />
       <button
         onClick={handle}
         disabled={disabled}
