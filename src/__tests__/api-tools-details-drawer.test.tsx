@@ -14,6 +14,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, fireEvent, act, cleanup } from "@testing-library/react";
 import React from "react";
 
+// Phase 19 — ApisTab now uses useRouter() for the Reclassify-button
+// navigation. Stub the App Router context so this test (which mounts
+// ApisTab once) doesn't trip the App Router invariant.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  useParams: () => ({}),
+}));
+
 const mockListAdminModules = vi.fn();
 const mockListAdminOperations = vi.fn();
 const mockReorderOperations = vi.fn();
@@ -72,6 +81,9 @@ const baseDetails: OperationDetails = {
   deprecated: false,
   elk_deprecated_api: false,
   ai_platform_eligible_api: true,
+  module_curated: false,
+  agent_curated: false,
+  persona_curated: false,
   display_order: 30,
   reject_description: null,
   elk: {
@@ -273,5 +285,20 @@ describe("OperationDetailsDrawer", () => {
     });
     expect(screen.getByText(/Second operation description/)).toBeInTheDocument();
     expect(screen.queryByText(/Records the seller's chosen response/)).toBeNull();
+  });
+
+  // Phase 19 — manual-override lock badges next to module/agent/persona.
+  it("renders manual-override badges when curated flags are true", async () => {
+    mockGetOperationDetails.mockResolvedValue({
+      ...baseDetails,
+      module_curated: true,
+      agent_curated: false,
+      persona_curated: true,
+    });
+    render(<OperationDetailsDrawer operationId={281} onClose={() => {}} />);
+    await screen.findByTestId("drawer-description");
+    expect(screen.getByTestId("drawer-module-lock-badge")).toBeInTheDocument();
+    expect(screen.queryByTestId("drawer-agent-lock-badge")).toBeNull();
+    expect(screen.getByTestId("drawer-persona-lock-badge")).toBeInTheDocument();
   });
 });
