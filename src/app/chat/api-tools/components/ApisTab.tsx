@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Eye, EyeOff, GripVertical, Loader2, Save } from "lucide-react";
+import { AlertTriangle, Eye, EyeOff, GripVertical, Info, Loader2, Save } from "lucide-react";
 import {
   AiplatformkbApiError,
   getOperationCounts,
@@ -10,8 +10,10 @@ import {
   reorderOperations,
   setOperationEligibility,
 } from "@/lib/aiplatformkb-api";
+import { visibilityTooltip } from "@/lib/api-tools-copy";
 import type { AdminModule, AdminOperation, OperationCountsResponse } from "@/types/api-tools";
 import SortableList from "@/components/primitives/SortableList";
+import OperationDetailsDrawer from "@/components/api-tools/OperationDetailsDrawer";
 
 const PLATFORMS = [
   "seller_panel", "icrm_platform", "app_platform", "oneapp", "ondc",
@@ -36,9 +38,15 @@ export default function ApisTab() {
   const [localOps, setLocalOps] = useState<AdminOperation[] | null>(null);
   const [counts, setCounts] = useState<OperationCountsResponse | null>(null);
   const [showDeprecated, setShowDeprecated] = useState(false);
+  // api_usable filter — drives by ai_platform_eligible_api flag.
+  // "all" disables the filter; "visible"/"hidden" restrict accordingly.
+  const [apiUsableFilter, setApiUsableFilter] = useState<"all" | "visible" | "hidden">("all");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
+  // Phase 16 — id of the operation currently shown in the side drawer.
+  // null = drawer closed. Set via the per-row "Details" button.
+  const [detailsOpId, setDetailsOpId] = useState<number | null>(null);
 
   // TS-H2 — alive-guard prevents setState on unmounted component if
   // user clicks away before the fetch resolves. Functional-updater on
@@ -88,10 +96,17 @@ export default function ApisTab() {
 
   // Display-time filter — keeps localOps unchanged (Save semantics
   // unaffected) but the SortableList only renders the visible subset.
+  // Combines the deprecated toggle with the api_usable visibility filter.
   const visibleOps = useMemo(() => {
     if (!localOps) return null;
-    return showDeprecated ? localOps : localOps.filter((o) => !_isDeprecated(o));
-  }, [localOps, showDeprecated]);
+    let out = showDeprecated ? localOps : localOps.filter((o) => !_isDeprecated(o));
+    if (apiUsableFilter === "visible") {
+      out = out.filter((o) => o.ai_platform_eligible_api);
+    } else if (apiUsableFilter === "hidden") {
+      out = out.filter((o) => !o.ai_platform_eligible_api);
+    }
+    return out;
+  }, [localOps, showDeprecated, apiUsableFilter]);
 
   const moduleCounts = counts?.by_module[moduleName];
 
@@ -219,6 +234,24 @@ export default function ApisTab() {
           />
           Show deprecated
         </label>
+        <label
+          className="text-xs text-zinc-400"
+          title="Filter rows by ai_platform_eligible_api — visible/hidden in the See Details drawer"
+        >
+          api_usable&nbsp;
+          <select
+            value={apiUsableFilter}
+            onChange={(e) =>
+              setApiUsableFilter(e.target.value as "all" | "visible" | "hidden")
+            }
+            data-testid="api-usable-filter"
+            className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-zinc-100"
+          >
+            <option value="all">All</option>
+            <option value="visible">Visible only</option>
+            <option value="hidden">Hidden only</option>
+          </select>
+        </label>
 
         {/* RIGHT — save controls */}
         <div className="ml-auto flex items-center gap-2">
@@ -256,7 +289,9 @@ export default function ApisTab() {
       {visibleOps !== null && visibleOps.length === 0 && !error && (
         <div className="rounded border border-zinc-800 bg-zinc-900/50 p-6 text-sm text-zinc-400">
           {localOps && localOps.length > 0
-            ? `No active operations in ${platform} / ${moduleName} (all ${localOps.length} are deprecated — toggle "Show deprecated" to see them).`
+            ? apiUsableFilter !== "all"
+              ? `No ${apiUsableFilter} operations in ${platform} / ${moduleName} — change the api_usable filter to see others.`
+              : `No active operations in ${platform} / ${moduleName} (all ${localOps.length} are deprecated — toggle "Show deprecated" to see them).`
             : `No operations in ${platform} / ${moduleName}.`}
         </div>
       )}
@@ -314,17 +349,29 @@ export default function ApisTab() {
                     <span className="text-xs text-zinc-500">
                       order {op.display_order ?? "—"} · hits {op.hit_count_7d ?? 0}
                     </span>
+                    {/* Phase 16 — Details button. stopPropagation defends the
+                        SortableList drag pointer-handler underneath (same
+                        defense as the eligibility toggle below). */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDetailsOpId(op.id);
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      title={`See full details for #${op.id}`}
+                      data-testid={`details-btn-${op.id}`}
+                      className="flex items-center gap-1 rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
+                    >
+                      <Info className="h-3 w-3" />
+                      Details
+                    </button>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleToggleEligibility(op);
                       }}
                       onPointerDown={(e) => e.stopPropagation()}
-                      title={
-                        op.ai_platform_eligible_api
-                          ? "Visible on /docs/ai-platform — click to hide"
-                          : "Hidden from /docs/ai-platform — click to expose"
-                      }
+                      title={visibilityTooltip(op.ai_platform_eligible_api)}
                       className={
                         "flex items-center gap-1 rounded px-2 py-1 text-xs transition-colors " +
                         (op.ai_platform_eligible_api
@@ -346,6 +393,16 @@ export default function ApisTab() {
           />
         </div>
       )}
+
+      {/* Phase 16 — Details drawer. Conditionally rendered so the fetch
+          effect inside is bound to the operation id and tears down on
+          close. Mounting at sibling level (not inside SortableList) means
+          the drawer's overlay/content cannot accidentally inherit drag
+          state from a row underneath. */}
+      <OperationDetailsDrawer
+        operationId={detailsOpId}
+        onClose={() => setDetailsOpId(null)}
+      />
     </div>
   );
 }

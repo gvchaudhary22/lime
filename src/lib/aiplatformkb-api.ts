@@ -152,6 +152,7 @@ import type {
   CreateToolPayload,
   ListOperationsParams,
   OperationCountsResponse,
+  OperationDetails,
   PatchToolPayload,
   PublicToolsResponse,
   RemoveApiFromToolResponse,
@@ -252,6 +253,16 @@ export function getOperationCounts(
 ): Promise<OperationCountsResponse> {
   const qs = buildQuery({ platform });
   return getJson<OperationCountsResponse>(`/admin/operations/counts${qs}`);
+}
+
+// Phase 16 — read-only deep-read for the "See details" drawer.
+// Fetches one api_listing row + LEFT-JOINed elk_api_hits breakdown.
+// Routes through the server-side admin proxy (bearer token injected
+// server-side; never reaches the browser).
+export function getOperationDetails(
+  operationId: number
+): Promise<OperationDetails> {
+  return getJson<OperationDetails>(`/admin/operations/${operationId}/details`);
 }
 
 // ── Tools CRUD ───────────────────────────────────────────────────────────
@@ -397,6 +408,8 @@ export const aiplatformkbApi = {
   reorderOperations,
   setOperationEligibility,
   getOperationCounts,
+  // Phase 16 — operation details drawer.
+  getOperationDetails,
   listTools,
   createTool,
   patchTool,

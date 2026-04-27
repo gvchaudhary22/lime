@@ -213,9 +213,12 @@ describe("ApisTab", () => {
     await waitFor(() => screen.getByText("/api/v1/auth/logout"));
     // Pre-click — row label says "hidden". Target via title attribute
     // because dnd-kit wraps the whole row in a role=button for keyboard
-    // accessibility, so getByRole("button") would be ambiguous.
+    // accessibility, so getByRole("button") would be ambiguous. Phase-16
+    // shifted the tooltip wording from "Hidden from /docs/ai-platform"
+    // to "Hidden from the AI agent" (sourced from the shared
+    // src/lib/api-tools-copy.ts visibilityTooltip helper).
     expect(screen.getByText("hidden")).toBeInTheDocument();
-    const toggleBtn = screen.getByTitle(/Hidden from \/docs\/ai-platform/i);
+    const toggleBtn = screen.getByTitle(/Hidden from the AI agent/i);
     fireEvent.click(toggleBtn);
     // Optimistic flip — label switches to "visible" before the await resolves.
     expect(screen.getByText("visible")).toBeInTheDocument();
