@@ -51,17 +51,24 @@ export default function ApisTab() {
   // TS-H2 — alive-guard prevents setState on unmounted component if
   // user clicks away before the fetch resolves. Functional-updater on
   // setModuleName (TS-H1) avoids capturing the initial empty closure.
+  // Phase-17 §4.3 — refetch modules when platform changes; preserve the
+  // current moduleName if it still exists in the new platform's list,
+  // otherwise fall to the first available (or empty if list is empty).
+  // Empty-string platform → omit the query param (back-compat with
+  // global-list call).
   useEffect(() => {
     let alive = true;
-    listAdminModules()
+    listAdminModules(platform || undefined)
       .then((rows) => {
         if (!alive) return;
         setModules(rows);
-        setModuleName((cur) => cur || rows[0]?.module_name || "");
+        setModuleName((cur) =>
+          rows.some((r) => r.module_name === cur) ? cur : (rows[0]?.module_name ?? "")
+        );
       })
       .catch((err) => { if (alive) setError(_msg(err)); });
     return () => { alive = false; };
-  }, []);
+  }, [platform]);
 
   // TS-H2 / TS-M1 — alive-guard prevents a stale promise (e.g. user
   // switched module mid-fetch) from overwriting the currently-displayed

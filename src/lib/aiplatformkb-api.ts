@@ -204,8 +204,9 @@ async function jsonRequest<T>(
 
 // ── Modules ──────────────────────────────────────────────────────────────
 
-export function listAdminModules(): Promise<AdminModule[]> {
-  return getJson<AdminModule[]>(`/admin/modules`);
+export function listAdminModules(platform?: string): Promise<AdminModule[]> {
+  const qs = platform ? `?platform=${encodeURIComponent(platform)}` : "";
+  return getJson<AdminModule[]>(`/admin/modules${qs}`);
 }
 
 export function reorderModules(
