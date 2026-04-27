@@ -130,4 +130,26 @@ describe("RepoSyncButton — branch input", () => {
       base_branch: "develop",
     });
   });
+
+  it("renders a datalist with master and main as branch suggestions", () => {
+    render(
+      <RepoSyncButton
+        org="shiprocket"
+        repo="MultiChannel_API"
+        onDiscovered={vi.fn()}
+      />
+    );
+    // Input wires `list` to the datalist id.
+    const input = getBranchInput();
+    expect(input.getAttribute("list")).toBe("repo-sync-branch-suggestions");
+    // Datalist exists with both canonical defaults.
+    const datalist = document.getElementById(
+      "repo-sync-branch-suggestions"
+    ) as HTMLDataListElement | null;
+    expect(datalist).not.toBeNull();
+    const optionValues = Array.from(datalist!.querySelectorAll("option")).map(
+      (o) => (o as HTMLOptionElement).value
+    );
+    expect(optionValues).toEqual(["master", "main"]);
+  });
 });

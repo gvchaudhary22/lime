@@ -48,10 +48,19 @@ export default function RepoSyncButton({ org, repo, onDiscovered }: Props) {
         placeholder="master"
         disabled={disabled}
         maxLength={128}
+        list="repo-sync-branch-suggestions"
         aria-label="Base branch (default: master)"
         title="Base branch to discover PRs against — leave blank to use master"
         className="w-32 rounded border border-white/[0.06] bg-[#0a0f1e] px-2 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:border-cyan-500/40 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
       />
+      {/* Suggestions for the two canonical default branches. Operators can
+          still type any value (free-text input); datalist just makes the
+          common case a one-click pick. Mirrors the backend hardening that
+          always includes master + main in /api/v1/prs/filters/options. */}
+      <datalist id="repo-sync-branch-suggestions">
+        <option value="master" />
+        <option value="main" />
+      </datalist>
       <button
         onClick={handle}
         disabled={disabled}
