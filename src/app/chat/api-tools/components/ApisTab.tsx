@@ -38,6 +38,9 @@ export default function ApisTab() {
   const [localOps, setLocalOps] = useState<AdminOperation[] | null>(null);
   const [counts, setCounts] = useState<OperationCountsResponse | null>(null);
   const [showDeprecated, setShowDeprecated] = useState(false);
+  // api_usable filter — drives by ai_platform_eligible_api flag.
+  // "all" disables the filter; "visible"/"hidden" restrict accordingly.
+  const [apiUsableFilter, setApiUsableFilter] = useState<"all" | "visible" | "hidden">("all");
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
@@ -93,10 +96,17 @@ export default function ApisTab() {
 
   // Display-time filter — keeps localOps unchanged (Save semantics
   // unaffected) but the SortableList only renders the visible subset.
+  // Combines the deprecated toggle with the api_usable visibility filter.
   const visibleOps = useMemo(() => {
     if (!localOps) return null;
-    return showDeprecated ? localOps : localOps.filter((o) => !_isDeprecated(o));
-  }, [localOps, showDeprecated]);
+    let out = showDeprecated ? localOps : localOps.filter((o) => !_isDeprecated(o));
+    if (apiUsableFilter === "visible") {
+      out = out.filter((o) => o.ai_platform_eligible_api);
+    } else if (apiUsableFilter === "hidden") {
+      out = out.filter((o) => !o.ai_platform_eligible_api);
+    }
+    return out;
+  }, [localOps, showDeprecated, apiUsableFilter]);
 
   const moduleCounts = counts?.by_module[moduleName];
 
@@ -224,6 +234,24 @@ export default function ApisTab() {
           />
           Show deprecated
         </label>
+        <label
+          className="text-xs text-zinc-400"
+          title="Filter rows by ai_platform_eligible_api — visible/hidden in the See Details drawer"
+        >
+          api_usable&nbsp;
+          <select
+            value={apiUsableFilter}
+            onChange={(e) =>
+              setApiUsableFilter(e.target.value as "all" | "visible" | "hidden")
+            }
+            data-testid="api-usable-filter"
+            className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-zinc-100"
+          >
+            <option value="all">All</option>
+            <option value="visible">Visible only</option>
+            <option value="hidden">Hidden only</option>
+          </select>
+        </label>
 
         {/* RIGHT — save controls */}
         <div className="ml-auto flex items-center gap-2">
@@ -261,7 +289,9 @@ export default function ApisTab() {
       {visibleOps !== null && visibleOps.length === 0 && !error && (
         <div className="rounded border border-zinc-800 bg-zinc-900/50 p-6 text-sm text-zinc-400">
           {localOps && localOps.length > 0
-            ? `No active operations in ${platform} / ${moduleName} (all ${localOps.length} are deprecated — toggle "Show deprecated" to see them).`
+            ? apiUsableFilter !== "all"
+              ? `No ${apiUsableFilter} operations in ${platform} / ${moduleName} — change the api_usable filter to see others.`
+              : `No active operations in ${platform} / ${moduleName} (all ${localOps.length} are deprecated — toggle "Show deprecated" to see them).`
             : `No operations in ${platform} / ${moduleName}.`}
         </div>
       )}

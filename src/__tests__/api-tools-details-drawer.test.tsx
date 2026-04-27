@@ -241,4 +241,44 @@ describe("OperationDetailsDrawer", () => {
     );
     expect(container.firstChild).toBeNull();
   });
+
+  // TS-M3 — race coverage. While the first fetch is in-flight, the parent
+  // re-mounts the drawer with a different operationId. The alive-guard
+  // must drop the stale promise so the second op's data wins, regardless
+  // of resolution order.
+  it("alive-guard drops stale fetch when operationId changes mid-flight", async () => {
+    let resolveFirst!: (v: OperationDetails) => void;
+    const firstPromise = new Promise<OperationDetails>((res) => {
+      resolveFirst = res;
+    });
+    const secondDetails: OperationDetails = {
+      ...baseDetails,
+      id: 999,
+      api_id: "mcapi.v1.shipments.other.get",
+      http_method: "GET",
+      path: "/api/v1/other",
+      description: "Second operation description.",
+    };
+    mockGetOperationDetails
+      .mockReturnValueOnce(firstPromise)
+      .mockResolvedValueOnce(secondDetails);
+
+    const { rerender } = render(
+      <OperationDetailsDrawer operationId={281} onClose={() => {}} />
+    );
+    expect(screen.getByTestId("drawer-loading")).toBeInTheDocument();
+
+    // Switch to the second operation while the first promise is still pending.
+    rerender(<OperationDetailsDrawer operationId={999} onClose={() => {}} />);
+    await screen.findByText(/Second operation description/);
+
+    // Now resolve the first (stale) promise. The drawer must NOT swap to
+    // the first operation's content.
+    await act(async () => {
+      resolveFirst(baseDetails);
+      await Promise.resolve();
+    });
+    expect(screen.getByText(/Second operation description/)).toBeInTheDocument();
+    expect(screen.queryByText(/Records the seller's chosen response/)).toBeNull();
+  });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ComponentPropsWithoutRef } from "react";
 import { AlertTriangle, Eye, EyeOff, Loader2, X } from "lucide-react";
 
 import {
@@ -49,6 +49,7 @@ const INITIAL_STATE: FetchState = {
 
 export default function OperationDetailsDrawer({ operationId, onClose }: Props) {
   const [state, setState] = useState<FetchState>(INITIAL_STATE);
+  const [retryNonce, setRetryNonce] = useState(0);
 
   // Escape key — only listen while drawer open.
   useEffect(() => {
@@ -60,8 +61,10 @@ export default function OperationDetailsDrawer({ operationId, onClose }: Props) 
     return () => document.removeEventListener("keydown", onKey);
   }, [operationId, onClose]);
 
-  // Fetch when operationId changes; alive-guard prevents stale promise
-  // resolution from overwriting the next operation's data.
+  // Fetch when operationId changes (or Retry bumps retryNonce). The
+  // alive-guard prevents a stale promise from overwriting the next
+  // operation's data when the user switches rows mid-request, and applies
+  // equally to retry attempts.
   useEffect(() => {
     if (operationId === null) {
       setState(INITIAL_STATE);
@@ -87,7 +90,7 @@ export default function OperationDetailsDrawer({ operationId, onClose }: Props) 
     return () => {
       alive = false;
     };
-  }, [operationId]);
+  }, [operationId, retryNonce]);
 
   if (operationId === null) return null;
 
@@ -154,25 +157,7 @@ export default function OperationDetailsDrawer({ operationId, onClose }: Props) 
                 </div>
                 <button
                   type="button"
-                  onClick={() => {
-                    // Force re-fetch by clearing state and re-running the
-                    // effect via a no-op operationId pulse (parent owns id).
-                    // Simpler: just call getOperationDetails directly.
-                    setState({ status: "loading", data: null, error: null });
-                    getOperationDetails(operationId)
-                      .then((data) =>
-                        setState({ status: "loaded", data, error: null })
-                      )
-                      .catch((err: unknown) => {
-                        const msg =
-                          err instanceof AiplatformkbApiError
-                            ? `${err.status} — ${err.message}`
-                            : err instanceof Error
-                              ? err.message
-                              : "request failed";
-                        setState({ status: "error", data: null, error: msg });
-                      });
-                  }}
+                  onClick={() => setRetryNonce((n) => n + 1)}
                   className="mt-2 rounded border border-red-700/60 bg-red-900/30 px-2 py-0.5 text-xs hover:bg-red-900/50"
                 >
                   Retry
@@ -288,11 +273,7 @@ function Section({
   label,
   children,
   ...rest
-}: {
-  label: string;
-  children: React.ReactNode;
-  [key: string]: unknown;
-}) {
+}: { label: string; children: React.ReactNode } & ComponentPropsWithoutRef<"section">) {
   return (
     <section {...rest}>
       <h4 className="mb-2 text-xs uppercase tracking-wider text-slate-500">
@@ -437,7 +418,7 @@ function ElkBlock({
               .sort((a, b) => a[0].localeCompare(b[0]))
               .map(([status, count]) => {
                 const code = parseInt(status, 10);
-                const bad = code >= 400;
+                const bad = Number.isFinite(code) && code >= 400;
                 return (
                   <span
                     key={status}
