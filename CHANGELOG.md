@@ -6,6 +6,62 @@ Format: [Semantic Versioning](https://semver.org/) — `v{milestone}.{phase}` al
 
 ---
 
+## [Unreleased] — feat/16-api-tools-details (Phase 16)
+
+### Feature — API Tools "See Details" drawer + visibility text + `api_usable` filter (Phase 16)
+
+**Branch**: `gvchaudhary22/lime` → `feat/16-api-tools-details`
+**aiplatformkb cross-link**: `BFRS-2/aiplatformkb` → `feat/16-api-tools-details`
+**Phase**: M1-P16 (read-only drawer · single-source visibility text · 3-way usability filter)
+**Tests**: 22 vitest pass on Phase-16 surface (10 drawer incl. new race case + 12 tabs unchanged); pre-existing 4 failing files (`dryrun`, `aiplatformkb-admin-proxy`, `api`, `build-health`, `components_extended`) confirmed unrelated by stash-and-rerun.
+
+#### Drawer — `OperationDetailsDrawer.tsx`
+
+New slide-from-right read-only drawer triggered by per-row "Details" button on `/chat/api-tools?tab=apis`. Pattern mirrors `ImpactDetailDrawer` (PR Feed):
+- `role="dialog"` + `aria-modal` + `aria-labelledby`
+- Escape key closes (document keydown listener, scoped to open state)
+- Backdrop click closes; internal scroll for long descriptions
+- Sibling-of-`SortableList` mount — drag state cannot leak into drawer
+
+Sections rendered (top → bottom): Identity · Description · Classification · Routing & risk · Code provenance · ELK details · Visibility · Metadata. ELK section surfaces `hit_count_7d`, per-day breakdown table, per-index breakdown table, HTTP status breakdown chips, and an amber stale-banner when `refreshed_at` > 24 h ago (with copy-paste runbook command).
+
+#### `api_usable` filter on the APIs tab
+
+New 3-way `<select>` toolbar control labeled `api_usable` (alongside the existing "Show deprecated" checkbox):
+- **All** (default) — no filter
+- **Visible only** — `ai_platform_eligible_api === true`
+- **Hidden only** — `ai_platform_eligible_api === false`
+
+Filter operates on `localOps` at display time only — Save semantics unaffected. Empty-state copy adapts (`No <visible|hidden> operations in <platform/module> — change the api_usable filter to see others`). Drag reconciliation still maps against full `localOps`, so non-visible rows keep their relative positions during reorder.
+
+#### Visibility text — single-source
+
+New `src/lib/api-tools-copy.ts` exports:
+- `VISIBILITY_EXPLAINER` — multi-line explanation rendered in the drawer's Visibility section
+- `visibilityTooltip(eligible: boolean)` — short tooltip used on the per-row eligibility badge
+
+Both surfaces reference the same constants — guarantees the visibility explanation never drifts between tooltip and drawer.
+
+#### Review residuals (commit `c6cebff`)
+
+`/tyrion:review 16` surfaced 0 CRITICAL / 2 HIGH (TS-H1, TS-H2) / 5 MEDIUM (TS-M1..M5) on TypeScript axis. All inline-fixable items landed:
+- **TS-H1** — Refactored Retry handler to bump a `retryNonce` integer participating in the main `useEffect` dep array. Alive-guard teardown now applies equally to retry attempts. Eliminated the duplicate fetch codepath (was 22 LOC of mirrored logic outside the alive-guard, prone to overwriting newer operations' data on rapid Retry-then-switch).
+- **TS-H2** — `Section` component prop typing tightened from `[key: string]: unknown` to `ComponentPropsWithoutRef<"section">`; restores compile-time validation of HTML attrs (e.g., `data-testid`).
+- **TS-M3** — Added "alive-guard drops stale fetch when operationId changes mid-flight" race vitest. Re-mounts drawer with second id while first promise pending; asserts second op's content wins after first promise resolves.
+- **TS-M5** — `Number.isFinite(code) && code >= 400` guard on parsed status code prevents NaN from being mis-classified as "success-color".
+
+Tracked Phase-17 hardening (TS-M1 dead `value !== ""` collapse, TS-M4 `useMemo` wrap for sort, focus-trap, ElkBlock subcomponent extraction) — not blockers per consolidated review.
+
+#### Auth
+
+All `/admin/*` calls continue to flow through the Phase-13 Wave-1C server-side proxy (`src/app/api/aiplatformkb/admin/[...path]/route.ts`). Token never reaches the browser. No new auth surface.
+
+#### Out of scope (deferred)
+
+Edit-from-drawer · ELK refresh button · Mobile responsive · Sparkline rendering · Tool-membership chips · Auto-refresh while open · Source-file deep links · Kibana Discover deep links · i18n.
+
+---
+
 ## [Unreleased] — feat/phase-13-pr-sync-trigger (Phase 13)
 
 ### Feature — Granular per-PR Sync UI on PR Feed (Phase 13)
