@@ -150,11 +150,8 @@ function PrFeedDetailPageInner() {
   }, [prId]);
   const { status: syncStatus } = useSyncRowStatus(prIdNum, 2000);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const token = localStorage.getItem("mars_token");
-    if (!token) router.push("/");
-  }, [router]);
+  // No token gate: detail page reads only auth-less aiplatformkb endpoints
+  // (per ADR 006). Mirrors the list page — see comment there.
 
   useEffect(() => {
     let cancelled = false;

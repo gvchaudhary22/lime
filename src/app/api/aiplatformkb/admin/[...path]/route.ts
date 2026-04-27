@@ -43,13 +43,19 @@ const STRIPPED_RESPONSE_HEADERS = new Set([
 
 async function proxy(req: NextRequest, params: { path: string[] }): Promise<Response> {
   const token = process.env.AIPLATFORMKB_ADMIN_TOKEN || "";
-  if (!token) {
-    // Fail closed. Generic message — never echo path or env-var name.
+  const isDev = process.env.NODE_ENV !== "production";
+
+  if (!token && !isDev) {
+    // Prod fail-closed. Generic message — never echo path or env-var name.
     return NextResponse.json(
       { detail: "admin proxy not configured" },
       { status: 503 },
     );
   }
+  // Dev with no token: forward without Authorization header. aiplatformkb's
+  // app/auth/admin_token.py grants a loopback dev-unblock when its own env
+  // var is also empty, so the upstream call succeeds locally without any
+  // shared secret. Prod always requires the token (gated above).
 
   const subpath = (params.path || []).join("/");
   const search = req.nextUrl.search; // includes leading "?" or ""
@@ -60,7 +66,9 @@ async function proxy(req: NextRequest, params: { path: string[] }): Promise<Resp
     if (STRIPPED_REQUEST_HEADERS.has(key.toLowerCase())) return;
     headers.set(key, value);
   });
-  headers.set("Authorization", `Bearer ${token}`);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
 
   const init: RequestInit = {
     method: req.method,

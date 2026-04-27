@@ -104,12 +104,10 @@ function PrFeedListPageInner() {
   const [refetchTick, setRefetchTick] = useState(0);
   const refetch = () => setRefetchTick((n) => n + 1);
 
-  // Token gate — matches other Lime chat pages.
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const token = localStorage.getItem("mars_token");
-    if (!token) router.push("/");
-  }, [router]);
+  // No token gate: PR Feed reads only auth-less aiplatformkb endpoints
+  // (per ADR 006 — aiplatformkb is the public read-side of the sync_kb
+  // pipeline). Other chat pages still require mars_token because they
+  // call MARS, but this page does not.
 
   // Filter options (dropdown values) — fetched once.
   useEffect(() => {
