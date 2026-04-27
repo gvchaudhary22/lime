@@ -303,8 +303,6 @@ function KV({
 }
 
 function ElkBlock({ elk }: { elk: OperationDetails["elk"] }) {
-  const stale = isStale(elk.hit_count_updated_at);
-
   return (
     <div>
       <KV label="elk_host" value={elk.elk_host} />
@@ -314,19 +312,7 @@ function ElkBlock({ elk }: { elk: OperationDetails["elk"] }) {
         value={elk.hit_count_7d !== null ? elk.hit_count_7d.toLocaleString() : null}
       />
       <KV label="elk_deprecated_api" value={String(elk.elk_deprecated_api)} />
-      <KV
-        label={stale ? "Last refresh (stale)" : "Last refresh"}
-        value={fmtDate(elk.hit_count_updated_at)}
-      />
-      {stale && (
-        <div className="mt-1 rounded border border-amber-900/40 bg-amber-950/30 px-2 py-1 text-[11px] text-amber-300">
-          Last refresh &gt; 24 h ago. Run{" "}
-          <code className="font-mono">
-            pillar_api_catalog_quick_elk_script.py --table-name api_listing
-          </code>{" "}
-          to refresh.
-        </div>
-      )}
+      <KV label="Last refresh" value={fmtDate(elk.hit_count_updated_at)} />
     </div>
   );
 }
@@ -340,13 +326,4 @@ function fmtDate(iso: string | null): string | null {
   } catch {
     return iso;
   }
-}
-
-const STALE_AFTER_MS = 24 * 60 * 60 * 1000;
-
-function isStale(iso: string | null): boolean {
-  if (!iso) return false;
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return false;
-  return Date.now() - t > STALE_AFTER_MS;
 }
