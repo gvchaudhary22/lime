@@ -138,26 +138,19 @@ export interface ReorderToolApisResponse {
   reordered: number;
 }
 
-// ── Operation details drawer (Phase 16) ─────────────────────────────────
+// ── Operation details drawer ────────────────────────────────────────────
 // Mirrors the backend response of GET /admin/operations/{id}/details.
-// Read-only deep-read for the lime "See details" drawer in ApisTab.
-
-export interface ElkPerIndexBreakdown {
-  index_name: string;
-  hits_7d: number;
-}
+// Read-only deep-read for the lime "See details" drawer in ApisTab. ELK
+// fields come from the denormalized api_listing columns; the per-day,
+// per-index, and status breakdowns are not surfaced (operators consult
+// Kibana directly when that level of detail is needed).
 
 export interface ElkDetails {
   elk_host: string | null;
   elk_index: string | null;
-  primary_index: string | null;
   hit_count_7d: number | null;
   hit_count_updated_at: string | null;        // ISO 8601 from backend
   elk_deprecated_api: boolean;
-  per_day: Record<string, number>;            // day_1..day_7 → count (NULL days omitted)
-  per_index_breakdown: ElkPerIndexBreakdown[];
-  status_breakdown: Record<string, number> | null;
-  refreshed_at: string | null;                // ISO 8601 from backend
 }
 
 export interface OperationDetails {
@@ -198,7 +191,7 @@ export interface OperationDetails {
   ai_platform_eligible_api: boolean;
   display_order: number | null;
   reject_description: string | null;
-  // ELK details (joined)
+  // ELK summary (from api_listing denormalized columns)
   elk: ElkDetails;
   // Metadata
   created_at: string | null;
