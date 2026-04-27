@@ -189,6 +189,11 @@ export interface OperationDetails {
   deprecated: boolean;
   elk_deprecated_api: boolean;
   ai_platform_eligible_api: boolean;
+  // Phase-19 — manual-override lock flags. true = curator pinned this
+  // field; populate_kb's UPSERT will preserve it on future syncs.
+  module_curated: boolean;
+  agent_curated: boolean;
+  persona_curated: boolean;
   display_order: number | null;
   reject_description: string | null;
   // ELK summary (from api_listing denormalized columns)
@@ -196,6 +201,44 @@ export interface OperationDetails {
   // Metadata
   created_at: string | null;
   updated_at: string | null;
+}
+
+// ── Reclassify (Phase 19) ──────────────────────────────────────────────
+
+export interface SetClassificationPayload {
+  module?: string;
+  agent?: string;
+  persona?: string;
+}
+
+export interface SetClassificationResponse {
+  id: number;
+  module: string;
+  agent: string | null;
+  persona: string | null;
+  module_curated: boolean;
+  agent_curated: boolean;
+  persona_curated: boolean;
+  platform: string;
+}
+
+export interface OperationSuggestCurrent {
+  module: string;
+  agent: string | null;
+  persona: string | null;
+}
+
+export interface OperationSuggest {
+  module: string | null;
+  agent: string | null;
+  persona: string | null;
+  current: OperationSuggestCurrent;
+  reasoning: string;
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  latency_ms: number;
+  fallback: boolean;
 }
 
 
