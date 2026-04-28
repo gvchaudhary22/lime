@@ -105,7 +105,17 @@ const happySuggest: OperationSuggest = {
   module: "NDR",
   agent: "ndr_resolver",
   persona: "seller",
-  current: { module: "Order", agent: "shipment_ops", persona: "seller" },
+  // Phase-20 — suggest now returns a 4th enum (platform). The mocked
+  // listAdminPlatforms returns ["icrm_platform","seller_panel","srx"];
+  // pick "icrm_platform" so it's a real switch from the row's current
+  // "seller_panel" platform.
+  platform: "icrm_platform",
+  current: {
+    module: "Order",
+    agent: "shipment_ops",
+    persona: "seller",
+    platform: "seller_panel",
+  },
   reasoning:
     "Path /api/v1/shipments/ndr/{id}/action and controller " +
     "ShipmentController@ndrAction indicate an NDR action.",
@@ -120,7 +130,13 @@ const fallbackSuggest: OperationSuggest = {
   module: null,
   agent: null,
   persona: null,
-  current: { module: "Order", agent: "shipment_ops", persona: "seller" },
+  platform: null,
+  current: {
+    module: "Order",
+    agent: "shipment_ops",
+    persona: "seller",
+    platform: "seller_panel",
+  },
   reasoning: "AI suggestion unavailable — pick manually",
   model: "claude-haiku-4-5-20251001",
   input_tokens: 0,
@@ -200,8 +216,8 @@ describe("ReclassifyPage", () => {
     expect(screen.queryByTestId("reclassify-ai-content")).toBeNull();
   });
 
-  // ── Case 4: clicking Use suggestion fills module + agent; leaves platform untouched ──
-  it("clicking Use suggestion updates module + agent dropdowns; platform unchanged", async () => {
+  // ── Case 4: clicking Use suggestion fills module + agent + platform ──
+  it("clicking Use suggestion updates module + agent + platform dropdowns", async () => {
     mockGetOperationDetails.mockResolvedValue(baseDetails);
     mockGetOperationSuggest.mockResolvedValue(happySuggest);
     render(<ReclassifyPage />);
@@ -209,6 +225,11 @@ describe("ReclassifyPage", () => {
     // Wait for the agent dropdown to be populated so the suggested
     // value renders as a real <option>.
     await screen.findByTestId("reclassify-agent-select");
+    // Wait for platforms list to load so the suggested platform is in
+    // the allowed list when "Use suggestion" runs.
+    await waitFor(() => {
+      expect(mockListAdminPlatforms).toHaveBeenCalled();
+    });
     fireEvent.click(screen.getByTestId("reclassify-ai-use-button"));
 
     const moduleSelect = screen.getByTestId(
@@ -222,8 +243,11 @@ describe("ReclassifyPage", () => {
     ) as HTMLSelectElement;
     expect(moduleSelect.value).toBe("NDR");
     expect(agentSelect.value).toBe("ndr_resolver");
-    // Phase-19 amendment — Use-suggestion path doesn't touch platform.
-    expect(platformSelect.value).toBe("seller_panel");
+    // Phase-20 — Use-suggestion now ALSO fills platform when the
+    // suggested value is in the allowed list.
+    await waitFor(() => {
+      expect(platformSelect.value).toBe("icrm_platform");
+    });
   });
 
   // ── Case 5: Save with single-field platform change → PATCH body has only platform ──
@@ -305,5 +329,55 @@ describe("ReclassifyPage", () => {
     fireEvent.click(cancelBtn);
     expect(mockBack).toHaveBeenCalledTimes(1);
     expect(mockSetOperationClassification).not.toHaveBeenCalled();
+  });
+
+  // ── Case 9 (Phase-20): AI panel renders Platform row when suggest returns platform ──
+  it("AI panel renders Platform row with suggested value when suggest returns platform", async () => {
+    mockGetOperationDetails.mockResolvedValue(baseDetails);
+    mockGetOperationSuggest.mockResolvedValue(happySuggest);
+    render(<ReclassifyPage />);
+    await screen.findByTestId("reclassify-ai-content");
+    const platformRow = screen.getByTestId("reclassify-ai-row-platform");
+    expect(platformRow).toBeInTheDocument();
+    expect(platformRow).toHaveTextContent("icrm_platform");
+  });
+
+  // ── Case 10 (Phase-20): Use suggestion fills platform AND triggers agent re-fetch ──
+  it("Use suggestion fills platformValue and re-fetches agents for the new platform", async () => {
+    mockGetOperationDetails.mockResolvedValue(baseDetails);
+    mockGetOperationSuggest.mockResolvedValue(happySuggest);
+    render(<ReclassifyPage />);
+    await screen.findByTestId("reclassify-ai-use-button");
+    await screen.findByTestId("reclassify-agent-select");
+    // Wait for platforms list to resolve so the suggested platform is
+    // in the allowed array when Use suggestion runs.
+    await waitFor(() => {
+      expect(mockListAdminPlatforms).toHaveBeenCalled();
+    });
+
+    // Mount fired one listAdminAgents("seller_panel") call already.
+    const callsBeforeUse = mockListAdminAgents.mock.calls.length;
+    expect(callsBeforeUse).toBeGreaterThanOrEqual(1);
+
+    fireEvent.click(screen.getByTestId("reclassify-ai-use-button"));
+
+    // Use suggestion should fire a second listAdminAgents call scoped
+    // to the suggested platform ("icrm_platform").
+    await waitFor(() => {
+      expect(mockListAdminAgents.mock.calls.length).toBeGreaterThan(
+        callsBeforeUse,
+      );
+    });
+    // Confirm the second call is platform-scoped to the suggested value.
+    const lastCall =
+      mockListAdminAgents.mock.calls[mockListAdminAgents.mock.calls.length - 1];
+    expect(lastCall[0]).toBe("icrm_platform");
+
+    const platformSelect = screen.getByTestId(
+      "reclassify-platform-select",
+    ) as HTMLSelectElement;
+    await waitFor(() => {
+      expect(platformSelect.value).toBe("icrm_platform");
+    });
   });
 });

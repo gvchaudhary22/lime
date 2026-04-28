@@ -194,16 +194,35 @@ function ReclassifyPageInner() {
     if (s.agent !== null && s.agent !== undefined) {
       // The suggested agent might not be in the current platform-scoped
       // dropdown. Append it so the <option> renders before we set the
-      // selected value. (Suggest doesn't return platform yet — Phase 20.)
+      // selected value.
       const suggestedAgent = s.agent;
       setAgents((prev) =>
         prev.includes(suggestedAgent) ? prev : [...prev, suggestedAgent].sort(),
       );
       setAgentValue(suggestedAgent);
     }
-    // Note: persona dropdown was removed in the Phase-19 amendment;
-    // platform isn't returned by suggest yet — Phase 20 work. The
-    // panel only reflects module + agent.
+    // Phase-20 — suggest now returns a 4th enum (platform). When the
+    // suggested platform is in the allowed `platforms` array, fill it
+    // and re-fetch the platform-scoped agent list. Mirror the same
+    // defense the platform-onChange path uses: if the suggested agent
+    // isn't in the new platform's list, append it so the <option>
+    // renders.
+    if (s.platform && platforms.includes(s.platform)) {
+      const suggestedPlatform = s.platform;
+      setPlatformValue(suggestedPlatform);
+      listAdminAgents(suggestedPlatform)
+        .then((rows) => {
+          if (s.agent && !rows.includes(s.agent)) {
+            setAgents([...rows, s.agent].sort());
+          } else {
+            setAgents(rows);
+          }
+        })
+        .catch(() => {
+          // Best-effort — fallback dropdown stays valid because we
+          // already appended the suggested agent above.
+        });
+    }
     setUsedSuggestion(true);
   };
 
@@ -223,9 +242,10 @@ function ReclassifyPageInner() {
       if (usedSuggestion) {
         if (moduleValue) body.module = moduleValue;
         if (_trim(agentValue)) body.agent = _trim(agentValue);
-        // Phase-19 amendment — Use-suggestion path doesn't touch
-        // platform; suggest endpoint doesn't return platform yet
-        // (Phase 20 work).
+        // Phase-20 — suggest now returns platform too. If the curator
+        // accepted the suggestion and the platform value is non-empty,
+        // ship it as part of the lock-flip payload.
+        if (platformValue) body.platform = platformValue;
       } else {
         if (moduleChanged) body.module = moduleValue;
         if (agentChanged) body.agent = _trim(agentValue);
@@ -523,9 +543,11 @@ function AiSuggestionPanel({
         <div data-testid="reclassify-ai-content" className="space-y-2 text-sm">
           <SuggestKV label="Module" value={state.data.module} />
           <SuggestKV label="Agent" value={state.data.agent} />
-          {/* Phase-19 amendment — persona row hidden; the form no longer
-              has a persona dropdown to update. Phase 20 will extend
-              suggest to also pick platform. */}
+          {/* Phase-20 — Platform row added; the LLM now picks a 4th
+              enum and the page's platform dropdown can consume it.
+              Persona row stays hidden (no persona dropdown in the form
+              since the Phase-19 amendment). */}
+          <SuggestKV label="Platform" value={state.data.platform} />
           {state.data.reasoning && (
             <p className="mt-2 whitespace-pre-wrap text-xs text-slate-300">
               <span className="text-slate-500">Reasoning: </span>
@@ -550,8 +572,9 @@ function AiSuggestionPanel({
 }
 
 function SuggestKV({ label, value }: { label: string; value: string | null }) {
+  const testid = `reclassify-ai-row-${label.toLowerCase()}`;
   return (
-    <div className="flex gap-3">
+    <div className="flex gap-3" data-testid={testid}>
       <span className="min-w-[80px] text-xs uppercase tracking-wider text-slate-500">
         {label}
       </span>
