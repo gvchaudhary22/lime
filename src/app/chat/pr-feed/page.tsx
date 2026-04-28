@@ -225,7 +225,9 @@ function PrFeedListPageInner() {
               </div>
             ) : data ? (
               <>
-                <PrTable items={data.items} onRowClick={handleRowClick} />
+                <div className="overflow-x-auto">
+                  <PrTable items={data.items} onRowClick={handleRowClick} />
+                </div>
                 <Pagination
                   total={data.total}
                   limit={data.limit}

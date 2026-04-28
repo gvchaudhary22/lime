@@ -72,8 +72,13 @@ export default function PrTable({ items, onRowClick }: Props) {
               <td className="px-4 py-3 font-mono text-xs text-slate-300">
                 #{pr.pr_number}
               </td>
-              <td className="max-w-md px-4 py-3 text-slate-100">
-                <div className="truncate">{pr.pr_title || "(untitled)"}</div>
+              <td className="max-w-[20rem] px-4 py-3 text-slate-100">
+                <div
+                  className="truncate"
+                  title={pr.pr_title || "(untitled)"}
+                >
+                  {pr.pr_title || "(untitled)"}
+                </div>
               </td>
               <td className="px-4 py-3 text-slate-300">
                 {pr.pr_author || "—"}
