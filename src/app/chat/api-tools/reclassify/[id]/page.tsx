@@ -159,7 +159,22 @@ function ReclassifyPageInner() {
 
     getOperationSuggest(idNum)
       .then((data) => {
-        if (alive) setSuggestState({ status: "loaded", data });
+        if (!alive) return;
+        setSuggestState({ status: "loaded", data });
+        // Merge AI-recommended values into the dropdown lists so the
+        // curator can pick them directly without clicking "Use
+        // suggestion" first. Defends against the case where the LLM
+        // recommends an agent/platform that's correct for this row but
+        // isn't in the platform-scoped list yet (e.g., a new platform
+        // with sparse coverage).
+        if (data.agent) {
+          const a = data.agent;
+          setAgents((prev) => (prev.includes(a) ? prev : [...prev, a].sort()));
+        }
+        if (data.platform) {
+          const p = data.platform;
+          setPlatforms((prev) => (prev.includes(p) ? prev : [...prev, p].sort()));
+        }
       })
       .catch(() => {
         // Suggest is best-effort. UI degrades to "no suggestion" rather
