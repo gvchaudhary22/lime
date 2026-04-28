@@ -15,7 +15,9 @@ import {
   AiplatformkbApiError,
   getOperationDetails,
   getOperationSuggest,
+  listAdminAgents,
   listAdminModules,
+  listAdminPlatforms,
   setOperationClassification,
 } from "@/lib/aiplatformkb-api";
 import type {
@@ -25,20 +27,13 @@ import type {
   SetClassificationPayload,
 } from "@/types/api-tools";
 
-// Persona enum mirrors the kb_populate fixed allowlist (PHASE-19-PLAN §2.3).
-const PERSONA_OPTIONS = [
-  "seller",
-  "icrm_agent",
-  "external",
-  "internal",
-  "partner",
-] as const;
+// Phase-19 amendment — persona dropdown removed; platform took its place.
+// The platform list is fetched from /admin/platforms at mount; the agent
+// list is fetched from /admin/agents?platform=<current> and re-fetched
+// whenever the curator switches the platform. No hardcoded enum drift.
 
-type PersonaOption = (typeof PERSONA_OPTIONS)[number];
-
-// Helper — empty string is the "no value" sentinel for free-text inputs and
-// untouched optional persona dropdown. Convert to null/undefined when
-// comparing against the loaded record.
+// Helper — empty string is the "no value" sentinel for the agent dropdown.
+// Convert to null/undefined when comparing against the loaded record.
 const _trim = (v: string | null | undefined): string => (v ?? "").trim();
 
 export default function ReclassifyPage() {
@@ -87,12 +82,18 @@ function ReclassifyPageInner() {
     status: "loading",
   });
   const [modules, setModules] = useState<AdminModule[] | null>(null);
+  // Phase-19 amendment — fetched once at mount; ground truth is the
+  // distinct set of api_listing.platform values.
+  const [platforms, setPlatforms] = useState<string[]>([]);
+  // Phase-19 amendment — re-fetched whenever the curator switches
+  // platform so the dropdown options track the row's surface.
+  const [agents, setAgents] = useState<string[]>([]);
 
   // Form state (independent of detailsState so curator edits don't get
   // clobbered by an unrelated re-fetch).
   const [moduleValue, setModuleValue] = useState<string>("");
   const [agentValue, setAgentValue] = useState<string>("");
-  const [personaValue, setPersonaValue] = useState<string>("");
+  const [platformValue, setPlatformValue] = useState<string>("");
   // True when curator clicked "Use suggestion" — Save still flips locks
   // even when the chosen values match the current DB row.
   const [usedSuggestion, setUsedSuggestion] = useState(false);
@@ -112,16 +113,16 @@ function ReclassifyPageInner() {
     setDetailsState({ status: "loading" });
     setSuggestState({ status: "loading" });
 
-    // 1. Details first — drives the platform-scoped modules fetch + form
-    //    initial values. Suggest fires in parallel.
+    // 1. Details first — drives the platform-scoped modules + agents
+    //    fetch + form initial values. Suggest + platforms fire in parallel.
     getOperationDetails(idNum)
       .then((data) => {
         if (!alive) return;
         setDetailsState({ status: "loaded", data });
         setModuleValue(data.module);
         setAgentValue(data.agent ?? "");
-        setPersonaValue(data.persona ?? "");
-        // Now load the platform-scoped module list.
+        setPlatformValue(data.platform ?? "");
+        // Now load the platform-scoped module + agent lists.
         listAdminModules(data.platform)
           .then((rows) => {
             if (alive) setModules(rows);
@@ -129,9 +130,31 @@ function ReclassifyPageInner() {
           .catch((err) => {
             if (alive) setDetailsState({ status: "error", error: _msg(err) });
           });
+        listAdminAgents(data.platform)
+          .then((rows) => {
+            if (alive) setAgents(rows);
+          })
+          .catch(() => {
+            // Best-effort — empty agent list still lets the curator
+            // pick "(no agent)" or rely on Use-suggestion fallback.
+            if (alive) setAgents([]);
+          });
       })
       .catch((err) => {
         if (alive) setDetailsState({ status: "error", error: _msg(err) });
+      });
+
+    // Phase-19 amendment — platforms are independent of details; fetch
+    // in parallel so the dropdown is ready as soon as the page renders.
+    listAdminPlatforms()
+      .then((rows) => {
+        if (alive) setPlatforms(rows);
+      })
+      .catch(() => {
+        // Best-effort — degrade to "current platform only" by leaving
+        // the list empty; the loaded value will still display via the
+        // fallback <option> rendered below.
+        if (alive) setPlatforms([]);
       });
 
     getOperationSuggest(idNum)
@@ -160,16 +183,27 @@ function ReclassifyPageInner() {
     return (
       moduleValue !== details.module ||
       _trim(agentValue) !== _trim(details.agent) ||
-      personaValue !== (details.persona ?? "")
+      platformValue !== (details.platform ?? "")
     );
-  }, [details, moduleValue, agentValue, personaValue, usedSuggestion]);
+  }, [details, moduleValue, agentValue, platformValue, usedSuggestion]);
 
   const handleUseSuggestion = () => {
     if (suggestState.status !== "loaded") return;
     const s = suggestState.data;
     if (s.module) setModuleValue(s.module);
-    if (s.agent !== null && s.agent !== undefined) setAgentValue(s.agent);
-    if (s.persona !== null && s.persona !== undefined) setPersonaValue(s.persona);
+    if (s.agent !== null && s.agent !== undefined) {
+      // The suggested agent might not be in the current platform-scoped
+      // dropdown. Append it so the <option> renders before we set the
+      // selected value. (Suggest doesn't return platform yet — Phase 20.)
+      const suggestedAgent = s.agent;
+      setAgents((prev) =>
+        prev.includes(suggestedAgent) ? prev : [...prev, suggestedAgent].sort(),
+      );
+      setAgentValue(suggestedAgent);
+    }
+    // Note: persona dropdown was removed in the Phase-19 amendment;
+    // platform isn't returned by suggest yet — Phase 20 work. The
+    // panel only reflects module + agent.
     setUsedSuggestion(true);
   };
 
@@ -184,16 +218,18 @@ function ReclassifyPageInner() {
       const body: SetClassificationPayload = {};
       const moduleChanged = moduleValue !== details.module;
       const agentChanged = _trim(agentValue) !== _trim(details.agent);
-      const personaChanged = personaValue !== (details.persona ?? "");
+      const platformChanged = platformValue !== (details.platform ?? "");
 
       if (usedSuggestion) {
         if (moduleValue) body.module = moduleValue;
         if (_trim(agentValue)) body.agent = _trim(agentValue);
-        if (personaValue) body.persona = personaValue;
+        // Phase-19 amendment — Use-suggestion path doesn't touch
+        // platform; suggest endpoint doesn't return platform yet
+        // (Phase 20 work).
       } else {
         if (moduleChanged) body.module = moduleValue;
         if (agentChanged) body.agent = _trim(agentValue);
-        if (personaChanged) body.persona = personaValue;
+        if (platformChanged && platformValue) body.platform = platformValue;
       }
 
       const res = await setOperationClassification(idNum!, body);
@@ -285,6 +321,50 @@ function ReclassifyPageInner() {
 
                 <div className="space-y-4">
                   <FieldRow
+                    label="Platform"
+                    locked={details.platform_curated}
+                    lockTestid="reclassify-platform-lock-badge"
+                  >
+                    <select
+                      value={platformValue}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setPlatformValue(next);
+                        setUsedSuggestion(false);
+                        // Re-fetch agents scoped to the new platform; reset
+                        // the agent value if the previous pick isn't in the
+                        // new list (it would otherwise render as a stale
+                        // <option> with no source row backing it).
+                        listAdminAgents(next)
+                          .then((rows) => {
+                            setAgents(rows);
+                            if (agentValue && !rows.includes(agentValue)) {
+                              setAgentValue("");
+                            }
+                          })
+                          .catch(() => {
+                            setAgents([]);
+                          });
+                      }}
+                      data-testid="reclassify-platform-select"
+                      className="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-slate-200"
+                    >
+                      <option value="">— (no platform)</option>
+                      {/* If current platform isn't in the fetched list yet,
+                          render it first so the loaded value displays. */}
+                      {platformValue &&
+                        !platforms.includes(platformValue) && (
+                          <option value={platformValue}>{platformValue}</option>
+                        )}
+                      {platforms.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </select>
+                  </FieldRow>
+
+                  <FieldRow
                     label="Module"
                     locked={details.module_curated}
                     lockTestid="reclassify-module-lock-badge"
@@ -319,38 +399,24 @@ function ReclassifyPageInner() {
                     locked={details.agent_curated}
                     lockTestid="reclassify-agent-lock-badge"
                   >
-                    <input
-                      type="text"
+                    <select
                       value={agentValue}
                       onChange={(e) => {
                         setAgentValue(e.target.value);
                         setUsedSuggestion(false);
                       }}
-                      maxLength={200}
-                      placeholder={details.agent ?? "(no agent)"}
-                      data-testid="reclassify-agent-input"
-                      className="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-2 font-mono text-sm text-slate-200"
-                    />
-                  </FieldRow>
-
-                  <FieldRow
-                    label="Persona"
-                    locked={details.persona_curated}
-                    lockTestid="reclassify-persona-lock-badge"
-                  >
-                    <select
-                      value={personaValue}
-                      onChange={(e) => {
-                        setPersonaValue(e.target.value);
-                        setUsedSuggestion(false);
-                      }}
-                      data-testid="reclassify-persona-select"
+                      data-testid="reclassify-agent-select"
                       className="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-slate-200"
                     >
-                      <option value="">— (no persona)</option>
-                      {PERSONA_OPTIONS.map((p) => (
-                        <option key={p} value={p}>
-                          {p}
+                      <option value="">— (no agent)</option>
+                      {/* If current agent isn't in the fetched list yet,
+                          render it first so the loaded value displays. */}
+                      {agentValue && !agents.includes(agentValue) && (
+                        <option value={agentValue}>{agentValue}</option>
+                      )}
+                      {agents.map((a) => (
+                        <option key={a} value={a}>
+                          {a}
                         </option>
                       ))}
                     </select>
@@ -457,7 +523,9 @@ function AiSuggestionPanel({
         <div data-testid="reclassify-ai-content" className="space-y-2 text-sm">
           <SuggestKV label="Module" value={state.data.module} />
           <SuggestKV label="Agent" value={state.data.agent} />
-          <SuggestKV label="Persona" value={state.data.persona} />
+          {/* Phase-19 amendment — persona row hidden; the form no longer
+              has a persona dropdown to update. Phase 20 will extend
+              suggest to also pick platform. */}
           {state.data.reasoning && (
             <p className="mt-2 whitespace-pre-wrap text-xs text-slate-300">
               <span className="text-slate-500">Reasoning: </span>
@@ -532,5 +600,3 @@ function _msg(err: unknown): string {
   return err instanceof Error ? err.message : "request failed";
 }
 
-// Unused but kept for type narrowing in future refactors.
-export type { PersonaOption };
