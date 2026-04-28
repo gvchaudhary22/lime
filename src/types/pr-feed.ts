@@ -53,6 +53,14 @@ export interface PrListResponse {
 export interface PrDetailHeader extends PrListItem {
   head_branch: string | null;
   approved_by: string[] | null;
+  // Phase-25 (Wave-3D) — optional org/repo lifted from sync_runs so the
+  // FE can construct the GitHub PR URL when pr_url is null (the HTTP-
+  // path insert path in aiplatformkb does not always populate pr_url
+  // on github_pr_log). Optional + nullable so older backends that
+  // don't surface these fields keep compiling — the GitHub link just
+  // omits gracefully when both are missing.
+  org?: string | null;
+  repo?: string | null;
 }
 
 export interface SyncRunSummary {
