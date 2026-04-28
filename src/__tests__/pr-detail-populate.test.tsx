@@ -1,4 +1,8 @@
 // Phase 13 Wave 3C — RunPopulateButton + PopulateProgressBanner tests.
+// Phase-25 Wave-3E — RunPopulateButton refactored as the async-job
+// state machine (no more preview→confirm). V5 locks the new contract:
+// disabled until classifyStatus="done", click → triggerPopulate fires
+// directly, polling drives terminal state.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -22,52 +26,50 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("RunPopulateButton", () => {
-  it("disabled until classify_status='done'", () => {
-    render(
+describe("RunPopulateButton — Phase 25 async populate", () => {
+  it("V5 disabled until classifyStatus='done'; click fires triggerPopulate", async () => {
+    // Render with classify pending — button must be disabled with the
+    // "Classify impacts first" tooltip.
+    const { rerender } = render(
       <RunPopulateButton
         prId={99}
         classifyStatus="pending"
         populateStatus="pending"
       />
     );
-    const btn = screen.getByRole("button", { name: /run kb_populate/i });
+    let btn = screen.getByRole("button", { name: /run kb_populate/i });
     expect(btn).toBeDisabled();
     expect(btn).toHaveAttribute("title", expect.stringMatching(/classify/i));
-  });
 
-  it("preview surfaces path_count + est cost", async () => {
-    mockFetch.mockResolvedValueOnce(
-      okJson({ pr_id: 99, path_count: 12, est_cost_usd: 3.6 })
-    );
-    render(
+    // Re-render with classify done — button now enabled.
+    rerender(
       <RunPopulateButton
         prId={99}
         classifyStatus="done"
         populateStatus="pending"
       />
     );
-    fireEvent.click(screen.getByRole("button", { name: /run kb_populate/i }));
-    await waitFor(() =>
-      expect(screen.getByText(/12 routes · ~\$3\.60/)).toBeInTheDocument()
-    );
-  });
+    btn = screen.getByRole("button", { name: /run kb_populate/i });
+    expect(btn).not.toBeDisabled();
 
-  it("confirm fires triggerPopulate", async () => {
+    // Click → POST returns 202 with the accepted handle. The polling
+    // hook then takes over (we resolve subsequent calls to running so
+    // the test focuses on the trigger contract).
     mockFetch
       .mockResolvedValueOnce(
-        okJson({ pr_id: 99, path_count: 5, est_cost_usd: 1.5 })
+        okJson({ sync_run_pr_id: 99, status: "running" })
       )
-      .mockResolvedValueOnce(
+      .mockResolvedValue(
         okJson({
-          pr_id: 99,
-          populate_status: "running",
-          paths_populated: 0,
-          populate_cost_usd: 1.5,
+          sync_run_pr_id: 99,
+          status: "running",
+          populate_at: null,
+          populate_cost_usd: 0,
+          error_detail: null,
         })
       );
     const onTriggered = vi.fn();
-    render(
+    rerender(
       <RunPopulateButton
         prId={99}
         classifyStatus="done"
@@ -76,14 +78,21 @@ describe("RunPopulateButton", () => {
       />
     );
     fireEvent.click(screen.getByRole("button", { name: /run kb_populate/i }));
-    await waitFor(() =>
-      expect(screen.getByText(/5 routes · ~\$1\.50/)).toBeInTheDocument()
-    );
-    fireEvent.click(screen.getByRole("button", { name: /confirm/i }));
     await waitFor(() => expect(onTriggered).toHaveBeenCalled());
-    const [url, init] = mockFetch.mock.calls[1];
+    const [url, init] = mockFetch.mock.calls[0];
     expect(String(url)).toMatch(/\/admin\/pr-sync\/prs\/99\/populate$/);
     expect((init as RequestInit).method).toBe("POST");
+  });
+
+  it("populateStatus='done' hides the button (pipeline complete)", () => {
+    const { container } = render(
+      <RunPopulateButton
+        prId={99}
+        classifyStatus="done"
+        populateStatus="done"
+      />
+    );
+    expect(container.firstChild).toBeNull();
   });
 });
 

@@ -1,127 +1,156 @@
 "use client";
 
-// Phase 13 Wave 3B — per-row "Sync impacts" cell.
-// Fetches /classify/preview to surface est cost; on confirm, fires
-// /classify and starts polling via useSyncRowStatus.
+// Phase-25 (Wave-3B) — per-row "Sync impacts" cell, refactored as the
+// async-job state machine that mirrors RepoSyncButton (Phase-23).
+//
+// Click → triggerClassify(prId) → 202 ({sync_run_pr_id, status, ...}).
+//   - cached_hit short-circuit returns status="done" + impact_count
+//     immediately; we fire onClassified() and skip polling entirely.
+//   - Otherwise we set activeJobId and useClassifyJobStatus drives the
+//     polling loop until terminal.
+//
+// On terminal "done" with impact_count > 0 the button hides (the row's
+// Impacts column now drives the impact-count display per the v25 UX
+// spec). On "failed"/"cancelled" we render the same Phase-22 2-row
+// error block (`GitHub <status>: <msg> — <hint>`) that RepoSyncButton
+// uses, sourced from jobStatus.error_detail.
 
-import { Sparkles, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { Activity, Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 
-import {
-  previewClassify,
-  triggerClassify,
-} from "@/lib/aiplatformkb-api";
-import { useSyncRowStatus } from "@/hooks/useSyncRowStatus";
-import type { ClassifyPreview } from "@/types/pr-sync";
+import { triggerClassify } from "@/lib/aiplatformkb-api";
+import { useClassifyJobStatus } from "@/hooks/useClassifyJobStatus";
+import type { GitHubErrorDetail } from "@/types/pr-sync";
 
 interface Props {
   prId: number;
+  onClassified?: (impactCount: number) => void;
 }
 
-export default function PerRowSyncImpactsButton({ prId }: Props) {
-  const [busy, setBusy] = useState(false);
-  const [preview, setPreview] = useState<ClassifyPreview | null>(null);
+// Mirror _formatGitHubErrorDetail in aiplatformkb-api.ts so the failed-job
+// path produces the same `GitHub <status>: <msg> — <hint>` string the
+// Phase-22 throw-path used. Single-source format keeps the 2-row error
+// block JSX (below) compatible with both error sources.
+function _formatJobErrorDetail(d: GitHubErrorDetail): string {
+  const head = `GitHub ${d.github_status ?? "error"}: ${d.github_message ?? "(no message)"}`;
+  const tail = d.hint ? ` — ${d.hint}` : "";
+  return head + tail;
+}
+
+export default function PerRowSyncImpactsButton({
+  prId,
+  onClassified,
+}: Props) {
+  const [activeJobId, setActiveJobId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Hook only polls once a trigger has fired (or status is already non-pending).
-  const [polledPrId, setPolledPrId] = useState<number | null>(null);
-  const { status } = useSyncRowStatus(polledPrId, 2000);
+  const [submitting, setSubmitting] = useState(false);
+  // Snapshot the impact_count we observed at the terminal state so the
+  // hide-on-done logic can stay decoupled from the polling hook (which
+  // resets `status` to null on unmount and on prId change).
+  const [terminalImpactCount, setTerminalImpactCount] = useState<
+    number | null
+  >(null);
+  const { status: jobStatus } = useClassifyJobStatus(activeJobId, 2000);
 
-  const classifyStatus = status?.classify_status ?? null;
-  const isRunning = classifyStatus === "running";
-  const isDone = classifyStatus === "done";
+  const isRunning = activeJobId !== null;
+  const showSpinner = submitting || isRunning;
 
-  async function handlePreview() {
+  // Phase-25 UX — once classify lands with impact_count > 0 the per-row
+  // Impacts column takes over, so the button hides. Zero-impact rows
+  // keep the button visible so the curator can re-trigger.
+  const hideAfterDone =
+    terminalImpactCount !== null && terminalImpactCount > 0;
+
+  async function handle() {
+    if (showSpinner) return;
+    setSubmitting(true);
     setError(null);
-    setBusy(true);
     try {
-      const p = await previewClassify(prId);
-      setPreview(p);
-      if (p.cached_hit) {
-        // Already done within 24h cache — short-circuit straight to polling
-        // so the row reflects existing impact_count.
-        setPolledPrId(prId);
-        setPreview(null);
+      const r = await triggerClassify(prId);
+      // Phase-25 cached_hit short-circuit — backend already has a fresh
+      // result (24h cache); skip the polling loop and fire the callback
+      // straight away.
+      if (r.status === "done") {
+        setTerminalImpactCount(r.impact_count);
+        onClassified?.(r.impact_count);
+      } else {
+        setActiveJobId(r.sync_run_pr_id);
       }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "preview failed");
+      setError(e instanceof Error ? e.message : "classify failed");
     } finally {
-      setBusy(false);
+      setSubmitting(false);
     }
   }
 
-  async function handleConfirm() {
-    if (!preview) return;
-    setBusy(true);
-    setError(null);
-    try {
-      await triggerClassify(prId);
-      setPreview(null);
-      setPolledPrId(prId);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "trigger failed");
-    } finally {
-      setBusy(false);
+  // React to terminal job status from the polling hook. On "done", fire
+  // onClassified, snapshot impact_count for hide-after-done, and clear
+  // activeJobId so the button becomes clickable again. On "failed" /
+  // "cancelled", synthesize the GitHub-prefixed error string when the
+  // backend surfaced a structured detail; otherwise fall back to a
+  // generic message.
+  useEffect(() => {
+    if (!jobStatus) return;
+    if (jobStatus.status === "done") {
+      setTerminalImpactCount(jobStatus.impact_count);
+      onClassified?.(jobStatus.impact_count);
+      setActiveJobId(null);
+    } else if (
+      jobStatus.status === "failed" ||
+      jobStatus.status === "cancelled"
+    ) {
+      if (jobStatus.error_detail) {
+        setError(_formatJobErrorDetail(jobStatus.error_detail));
+      } else {
+        setError(`classify ${jobStatus.status}`);
+      }
+      setActiveJobId(null);
     }
+  }, [jobStatus, onClassified]);
+
+  if (hideAfterDone) {
+    return null;
   }
 
-  if (isRunning) {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-xs text-sky-300">
-        <Loader2 className="h-3 w-3 animate-spin" />
-        Classifying…
-      </span>
-    );
-  }
-  if (isDone && status) {
-    return (
-      <span className="text-xs text-emerald-300">
-        Classified · {status.classify_cost_usd.toFixed(2)}$
-      </span>
-    );
-  }
-
-  if (preview) {
-    return (
-      <div className="inline-flex flex-col gap-1 text-xs">
-        <span className="text-slate-300">
-          {preview.file_count} files · ~${preview.est_cost_usd.toFixed(2)}
-        </span>
-        <div className="flex gap-2">
-          <button
-            onClick={handleConfirm}
-            disabled={busy}
-            className="rounded bg-sky-500/20 px-2 py-0.5 text-sky-300 hover:bg-sky-500/30 disabled:opacity-50"
-          >
-            Confirm
-          </button>
-          <button
-            onClick={() => setPreview(null)}
-            disabled={busy}
-            className="rounded bg-white/[0.05] px-2 py-0.5 text-slate-400 hover:bg-white/[0.08]"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const buttonLabel =
+    isRunning && !submitting ? "Classifying…" : "Sync impacts";
 
   return (
-    <div className="inline-flex flex-col gap-1">
+    <div className="flex items-center gap-2">
       <button
-        onClick={handlePreview}
-        disabled={busy}
+        onClick={handle}
+        disabled={showSpinner}
         title="Run Sonnet impact classification on this PR"
-        className="inline-flex items-center gap-1 rounded border border-white/10 bg-white/[0.02] px-2 py-0.5 text-xs text-slate-200 transition hover:bg-white/[0.06] disabled:opacity-50"
+        className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.02] px-3 py-1.5 text-sm text-slate-200 transition hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {busy ? (
-          <Loader2 className="h-3 w-3 animate-spin" />
+        {showSpinner ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
         ) : (
-          <Sparkles className="h-3 w-3" />
+          <Activity className="h-3.5 w-3.5" />
         )}
-        Sync impacts
+        {buttonLabel}
       </button>
-      {error && <span className="text-[10px] text-rose-400">{error}</span>}
+      {error &&
+        (error.startsWith("GitHub ")
+          ? (() => {
+              // Phase-22 (Wave-3B) — the structured GitHub error arrives
+              // as `GitHub <status>: <msg> — <hint>`. Split on " — " so
+              // the hint wraps onto a softer second row; pure
+              // presentation, no logic change. Mirrors RepoSyncButton's
+              // IIFE pattern so the 2-row format lives in one place.
+              const sepIdx = error.indexOf(" — ");
+              const head = sepIdx >= 0 ? error.slice(0, sepIdx) : error;
+              const hint = sepIdx >= 0 ? error.slice(sepIdx + 3) : "";
+              return (
+                <div className="flex max-w-md flex-col gap-0.5 text-xs">
+                  <span className="text-rose-400">{head}</span>
+                  {hint && <span className="text-slate-400">{hint}</span>}
+                </div>
+              );
+            })()
+          : (
+              <span className="text-xs text-rose-400">{error}</span>
+            ))}
     </div>
   );
 }

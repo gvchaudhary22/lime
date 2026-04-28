@@ -30,8 +30,17 @@ function confidenceCls(score: number | null): string {
   return "bg-slate-500";
 }
 
+// Phase-25 (Wave-3D) — split impacts by api_status into two visually
+// distinct sections. NEW APIs land first (emerald accent — they need
+// curator attention before they ship), EXISTING APIs follow (cyan
+// accent — already in api_listing, just a regression-impact signal).
+// Keeps column shapes + onRowClick wiring identical to the Phase-13
+// flat table; rendering is delegated to FlatImpactsTable.
 export default function ImpactsTable({ items, onRowClick }: Props) {
-  if (items.length === 0) {
+  const newApis = items.filter((i) => i.api_status === "new");
+  const existingApis = items.filter((i) => i.api_status === "existing");
+
+  if (newApis.length === 0 && existingApis.length === 0) {
     return (
       <div className="px-4 py-12 text-center text-sm text-slate-500">
         No impacts match the current filters.
@@ -39,6 +48,38 @@ export default function ImpactsTable({ items, onRowClick }: Props) {
     );
   }
 
+  return (
+    <div className="space-y-4">
+      {newApis.length > 0 && (
+        <section>
+          <header className="flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-wider text-emerald-400">
+            NEW APIs
+            <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-emerald-300">
+              {newApis.length}
+            </span>
+          </header>
+          <FlatImpactsTable items={newApis} onRowClick={onRowClick} />
+        </section>
+      )}
+      {existingApis.length > 0 && (
+        <section>
+          <header className="flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-wider text-cyan-400">
+            EXISTING APIs
+            <span className="rounded bg-cyan-500/10 px-2 py-0.5 text-cyan-300">
+              {existingApis.length}
+            </span>
+          </header>
+          <FlatImpactsTable items={existingApis} onRowClick={onRowClick} />
+        </section>
+      )}
+    </div>
+  );
+}
+
+// Phase-25 (Wave-3D) — extracted Phase-13 flat-table rendering. Lives as
+// an internal helper so the NEW/EXISTING split sections can both reuse
+// it with identical column shapes + row interaction.
+function FlatImpactsTable({ items, onRowClick }: Props) {
   return (
     <table className="w-full text-sm">
       <thead>

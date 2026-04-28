@@ -8,6 +8,11 @@ import PerRowSyncImpactsButton from "@/components/pr-sync/PerRowSyncImpactsButto
 interface Props {
   items: PrListItem[];
   onRowClick: (prId: number) => void;
+  // Phase-25 review TS-H1 — when classify finishes for a row, the per-row
+  // PerRowSyncImpactsButton hides itself but the impact_counts cell stays
+  // stale until the page refetches. Parent (`/chat/pr-feed/page.tsx`)
+  // passes `onClassified` to refetch the list so the cell updates.
+  onClassified?: (prId: number, impactCount: number) => void;
 }
 
 const STATUS_COLORS: Record<ProcessingStatus, string> = {
@@ -24,7 +29,7 @@ function formatDate(iso: string | null): string {
   return d.toISOString().slice(0, 10);
 }
 
-export default function PrTable({ items, onRowClick }: Props) {
+export default function PrTable({ items, onRowClick, onClassified }: Props) {
   if (items.length === 0) {
     return (
       <div className="px-4 py-12 text-center text-sm text-slate-500">
@@ -107,7 +112,10 @@ export default function PrTable({ items, onRowClick }: Props) {
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => e.stopPropagation()}
               >
-                <PerRowSyncImpactsButton prId={pr.id} />
+                <PerRowSyncImpactsButton
+                  prId={pr.id}
+                  onClassified={(count) => onClassified?.(pr.id, count)}
+                />
               </td>
               <td className="px-4 py-3 text-right">
                 {pr.pr_url && (

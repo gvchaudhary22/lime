@@ -435,12 +435,14 @@ export function listToolsPublic(): Promise<PublicToolsResponse> {
 
 import type {
   CancelResponse,
+  ClassifyJobAccepted,
+  ClassifyJobStatus,
   ClassifyPreview,
-  ClassifyResponse,
   DiscoverJobAccepted,
   DiscoverJobStatus,
+  PopulateJobAccepted,
+  PopulateJobStatus,
   PopulatePreview,
-  PopulateResponse,
   PrSyncDiscoverRequest,
   PrSyncStatus,
 } from "@/types/pr-sync";
@@ -503,12 +505,27 @@ export function previewClassify(prId: number): Promise<ClassifyPreview> {
   );
 }
 
-export function triggerClassify(prId: number): Promise<ClassifyResponse> {
+// Phase-25 (Wave-3A) — classify is now async. The POST returns 202 with
+// ClassifyJobAccepted ({sync_run_pr_id, status:"running"|"done",
+// cached_hit, impact_count}). When status === "done" the backend
+// short-circuited via the 24h cache — the caller can skip polling and
+// fire onClassified() immediately. Otherwise drive the polling loop via
+// useClassifyJobStatus until /classify/status flips to a terminal state.
+export function triggerClassify(prId: number): Promise<ClassifyJobAccepted> {
   return _runWithOpLabel("classify", () =>
-    jsonRequest<ClassifyResponse>(
+    jsonRequest<ClassifyJobAccepted>(
       "POST",
       `/admin/pr-sync/prs/${prId}/classify`
     )
+  );
+}
+
+// Phase-25 (Wave-3A) — poll the async classify job status.
+export function getClassifyJobStatus(
+  prId: number,
+): Promise<ClassifyJobStatus> {
+  return getJson<ClassifyJobStatus>(
+    `/admin/pr-sync/prs/${prId}/classify/status`,
   );
 }
 
@@ -518,12 +535,27 @@ export function previewPopulate(prId: number): Promise<PopulatePreview> {
   );
 }
 
-export function triggerPopulate(prId: number): Promise<PopulateResponse> {
+// Phase-25 (Wave-3A) — populate is now async. The POST returns 202 with
+// PopulateJobAccepted ({sync_run_pr_id, status:"running"}); the FE
+// drives the polling loop via usePopulateJobStatus until /populate/status
+// flips to a terminal state. The endpoint also returns 400 if the PR
+// hasn't been classified yet — _runWithOpLabel surfaces that as
+// "populate failed (400)".
+export function triggerPopulate(prId: number): Promise<PopulateJobAccepted> {
   return _runWithOpLabel("populate", () =>
-    jsonRequest<PopulateResponse>(
+    jsonRequest<PopulateJobAccepted>(
       "POST",
       `/admin/pr-sync/prs/${prId}/populate`
     )
+  );
+}
+
+// Phase-25 (Wave-3A) — poll the async populate job status.
+export function getPopulateJobStatus(
+  prId: number,
+): Promise<PopulateJobStatus> {
+  return getJson<PopulateJobStatus>(
+    `/admin/pr-sync/prs/${prId}/populate/status`,
   );
 }
 
@@ -576,8 +608,12 @@ export const aiplatformkbApi = {
   getDiscoverJobStatus,
   previewClassify,
   triggerClassify,
+  // Phase-25 — async classify job status polling.
+  getClassifyJobStatus,
   previewPopulate,
   triggerPopulate,
+  // Phase-25 — async populate job status polling.
+  getPopulateJobStatus,
   getPrSyncStatus,
   cancelPrSync,
 };

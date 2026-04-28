@@ -93,6 +93,43 @@ export interface PopulateResponse {
   populate_cost_usd: number;
 }
 
+// Phase-25 (Wave-3A) — async classify + populate contracts. The sync
+// `triggerClassify` / `triggerPopulate` POSTs now return 202 with these
+// "accepted" shapes; the FE polls /classify/status and /populate/status
+// until the row reaches a terminal state. cached_hit on classify is the
+// short-circuit indicator: when the backend already has a fresh result
+// (24h cache), it returns status="done" + impact_count immediately — the
+// caller can skip the polling loop and fire onClassified() right away.
+
+export interface ClassifyJobAccepted {
+  sync_run_pr_id: number;
+  status: "running" | "done";
+  cached_hit: boolean;
+  impact_count: number;
+}
+
+export interface ClassifyJobStatus {
+  sync_run_pr_id: number;
+  status: "pending" | "running" | "done" | "failed" | "cancelled";
+  classified_at: string | null;
+  classify_cost_usd: number;
+  impact_count: number;
+  error_detail: GitHubErrorDetail | null;
+}
+
+export interface PopulateJobAccepted {
+  sync_run_pr_id: number;
+  status: "running";
+}
+
+export interface PopulateJobStatus {
+  sync_run_pr_id: number;
+  status: "pending" | "running" | "done" | "failed" | "cancelled";
+  populate_at: string | null;
+  populate_cost_usd: number;
+  error_detail: GitHubErrorDetail | null;
+}
+
 export interface PrSyncStatus {
   pr_id: number;
   pr_number: number;

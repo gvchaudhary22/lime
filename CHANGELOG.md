@@ -6,6 +6,51 @@ Format: [Semantic Versioning](https://semver.org/) — `v{milestone}.{phase}` al
 
 ---
 
+## [Unreleased] — feat/25-async-classify-populate-jobs (Phase 25)
+
+### Feature — Async classify/populate state machines · NEW vs EXISTING APIs split · GitHub PR link (Phase 25)
+
+**Branch**: `gvchaudhary22/lime` → `feat/25-async-classify-populate-jobs`
+**aiplatformkb cross-link**: `BFRS-2/aiplatformkb` → `feat/25-async-classify-populate-jobs`
+**Phase**: M1-P25 — frontend half of the classify/populate sync→async cut + detail-page enrichments.
+**Tests**: 21 vitest pass across `pr-feed-row-sync.test.tsx` (13) + `pr-feed-list-page.test.tsx` (4) + `pr-feed-detail-page.test.tsx` (4). `tsc --noEmit` clean for Phase-25 files.
+
+#### What shipped
+
+- **Types** (`src/types/pr-sync.ts`): `ClassifyJob{Accepted,Status}` + `PopulateJob{Accepted,Status}` mirror the Phase-23 discover types. Reuses `GitHubErrorDetail` from Phase 22.
+- **Client** (`src/lib/aiplatformkb-api.ts`): `triggerClassify` / `triggerPopulate` return-type changes; new `getClassifyJobStatus` / `getPopulateJobStatus`.
+- **Polling hooks** (NEW): `useClassifyJobStatus.ts` + `usePopulateJobStatus.ts` — direct copies of Phase-23 `useDiscoverJobStatus` (recursive setTimeout, alive-guard, terminal `done|failed|cancelled`).
+- **`PerRowSyncImpactsButton.tsx`** state machine: idle → submitting → running → done | failed → idle. **Button hides on done if `impact_count > 0`** (per user explicit ask).
+- **`RunPopulateButton.tsx`** state machine: gated on `classify_status === 'done'`; hides on `populate_status === 'done'`.
+- **`PrHeaderCard.tsx`** GitHub URL constructed FE-side as `https://github.com/${org}/${repo}/pull/${pr_number}` (or fallback to legacy `pr_url`).
+- **`ImpactsTable.tsx`** rendered as TWO sections: NEW APIs (emerald) + EXISTING APIs (cyan) — backed by `api_impact_log.api_status` from the backend.
+
+#### Mid-review inline fixes (commit `2bb53f2`)
+
+- **TS-H1**: `onClassified` not threaded through `PrTable`. After per-row classify completes, button hides itself but the `impact_counts` cell stays stale until full page reload. `PrTable` interface gains optional `onClassified?: (prId, count)`; parent `/chat/pr-feed/page.tsx` wires `() => refetch()` so the list re-queries when any row finishes classifying.
+- **TS-M1**: `PrHeaderCard` fallback to `pr.pr_url` for legacy rows that pre-date the `sr.org`/`sr.repo_name` exposure on the header response.
+
+#### Cross-repo
+
+Backend: `BFRS-2/aiplatformkb#43`. Either repo can merge first.
+
+#### Tracked residuals (Phase 26)
+
+- **TS-MED-2** — `GitHubErrorDetail.kind` literal-union typing (Phase-22 carry).
+- **TS-MED-3** — Extract `usePollingJobStatus<T>` factory now that 3 polling hooks exist (discover/classify/populate).
+- **TS-LOW-1** — Dedupe `_formatJobErrorDetail` / `_formatGitHubErrorDetail`.
+- **TS-LOW-3** — `aria-live` / `role="alert"` (Phase-22 a11y carry).
+- **TS-LOW-4** — `AbortSignal` threading on polling hooks.
+- **TS-LOW-5** — Re-classify UX after button hides on done.
+
+#### Out of scope (Phase 26 functional)
+
+The user's headline product ask — "see NEW vs EXISTING APIs after Sync impacts" — is **plumbing-complete in Phase 25** but data-dependent on the Phase-26 wiring of the real Sonnet classifier into `run_classify_mode` (currently a stub). The FE renders correctly the moment real impact rows exist.
+
+
+
+---
+
 ## [Unreleased] — feat/17-base-branch-and-module-scoping (Phase 17)
 
 ### Feature — RepoSyncButton branch input + ApisTab platform-scoped module dropdown (Phase 17)

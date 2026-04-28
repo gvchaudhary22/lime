@@ -1,4 +1,7 @@
 // Phase 13 Wave 3B — RepoSyncButton + PerRowSyncImpactsButton + inline summary tests.
+// Phase-25 Wave-3E — adds the async classify state-machine cases (V1+V2),
+// the ImpactsTable NEW/EXISTING split (V3), and the PrHeaderCard
+// FE-built GitHub URL (V4). V5 lives in pr-detail-populate.test.tsx.
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
@@ -6,6 +9,9 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import RepoSyncButton from "@/components/pr-sync/RepoSyncButton";
 import PerRowSyncImpactsButton from "@/components/pr-sync/PerRowSyncImpactsButton";
 import SyncProgressInlineSummary from "@/components/pr-sync/SyncProgressInlineSummary";
+import ImpactsTable from "@/components/pr-feed/ImpactsTable";
+import PrHeaderCard from "@/components/pr-feed/PrHeaderCard";
+import type { ImpactItem, PrDetailHeader } from "@/types/pr-feed";
 import type { PrSyncStatus } from "@/types/pr-sync";
 
 const mockFetch = vi.fn();
@@ -333,73 +339,223 @@ describe("RepoSyncButton — Phase 23 async job", () => {
   }, 10000);
 });
 
-// ── PerRowSyncImpactsButton ─────────────────────────────────────────────
+// ── PerRowSyncImpactsButton — Phase 25 async classify ──────────────────
+//
+// Phase-25 (Wave-3B) — the per-row Sync impacts cell now drives an
+// async-job state machine. Click → triggerClassify (202) → poll
+// /classify/status → terminal hides the button (when impact_count > 0)
+// or surfaces a 2-row GitHub error block on failed/cancelled.
+//
+// The Phase-13 preview→confirm flow has been removed; the legacy two
+// tests for it are gone. V1+V2 below replace them.
 
-describe("PerRowSyncImpactsButton", () => {
-  it("preview surfaces file_count + est cost; confirm fires trigger", async () => {
-    // 1: preview (not cached); 2: trigger
+describe("Phase 25 — async classify + populate", () => {
+  it("V1 click → 202 done with impacts hides button + fires onClassified", async () => {
+    // 1st fetch: POST /admin/pr-sync/prs/2401/classify → 202 running.
+    // 2nd fetch: GET /classify/status → still running.
+    // 3rd+ fetches: GET /classify/status → done with impact_count=5.
     mockFetch
       .mockResolvedValueOnce(
-        okJson({ pr_id: 99, file_count: 50, est_cost_usd: 0.6, cached_hit: false })
-      )
-      .mockResolvedValueOnce(
         okJson({
-          pr_id: 99,
-          classify_status: "running",
+          sync_run_pr_id: 2401,
+          status: "running",
           cached_hit: false,
           impact_count: 0,
-          classify_cost_usd: 0.6,
         })
       )
-      // First polling fetch from useSyncRowStatus (status endpoint)
       .mockResolvedValueOnce(
         okJson({
-          pr_id: 99,
-          pr_number: 1,
-          classify_status: "running",
+          sync_run_pr_id: 2401,
+          status: "running",
           classified_at: null,
           classify_cost_usd: 0,
-          populate_status: "pending",
-          populate_at: null,
-          populate_cost_usd: 0,
+          impact_count: 0,
+          error_detail: null,
+        })
+      )
+      .mockResolvedValue(
+        okJson({
+          sync_run_pr_id: 2401,
+          status: "done",
+          classified_at: "2026-04-28T10:00:03Z",
+          classify_cost_usd: 0.348,
+          impact_count: 5,
+          error_detail: null,
         })
       );
-    render(<PerRowSyncImpactsButton prId={99} />);
+    const onClassified = vi.fn();
+    render(
+      <PerRowSyncImpactsButton prId={2401} onClassified={onClassified} />
+    );
     fireEvent.click(screen.getByRole("button", { name: /sync impacts/i }));
-    await waitFor(() =>
-      expect(screen.getByText(/50 files · ~\$0\.60/)).toBeInTheDocument()
-    );
-    fireEvent.click(screen.getByRole("button", { name: /confirm/i }));
-    // After confirm, hook starts polling — UI shows "Classifying…"
-    await waitFor(() =>
-      expect(screen.getByText(/classifying/i)).toBeInTheDocument()
-    );
-  });
+    // Wait for the polling tick to land (default 2000ms).
+    await waitFor(() => expect(onClassified).toHaveBeenCalledWith(5), {
+      timeout: 5000,
+    });
+    // Button hides on done with impact_count > 0 — the row's Impacts
+    // column takes over the count display per the v25 UX spec.
+    expect(
+      screen.queryByRole("button", { name: /sync impacts|classifying/i })
+    ).toBeNull();
+  }, 10000);
 
-  it("cached_hit short-circuits preview straight into polling", async () => {
+  it("V2 failed renders 2-row GitHub error block from error_detail", async () => {
     mockFetch
       .mockResolvedValueOnce(
-        okJson({ pr_id: 99, file_count: 12, est_cost_usd: 0.144, cached_hit: true })
-      )
-      .mockResolvedValueOnce(
         okJson({
-          pr_id: 99,
-          pr_number: 1,
-          classify_status: "done",
-          classified_at: "2026-04-26",
-          classify_cost_usd: 0.144,
-          populate_status: "pending",
-          populate_at: null,
-          populate_cost_usd: 0,
+          sync_run_pr_id: 2401,
+          status: "running",
+          cached_hit: false,
+          impact_count: 0,
+        })
+      )
+      .mockResolvedValue(
+        okJson({
+          sync_run_pr_id: 2401,
+          status: "failed",
+          classified_at: null,
+          classify_cost_usd: 0,
+          impact_count: 0,
+          error_detail: {
+            kind: "http",
+            github_status: 422,
+            github_message: "Validation Failed",
+            github_errors: [{ message: "cannot be searched" }],
+            url: "https://api.github.com/...",
+            hint: "Repo cannot be searched. Either it doesn't exist OR the configured GITHUB_TOKEN can't see it...",
+          },
         })
       );
-    render(<PerRowSyncImpactsButton prId={99} />);
+    render(<PerRowSyncImpactsButton prId={2401} />);
     fireEvent.click(screen.getByRole("button", { name: /sync impacts/i }));
-    await waitFor(() =>
-      expect(screen.getByText(/Classified · 0\.14\$/)).toBeInTheDocument()
+    // Row 1: GitHub status + message (rose-400).
+    await waitFor(
+      () =>
+        expect(
+          screen.getByText(/GitHub 422: Validation Failed/i)
+        ).toBeInTheDocument(),
+      { timeout: 5000 }
     );
-    // Confirm button never appears.
-    expect(screen.queryByRole("button", { name: /confirm/i })).toBeNull();
+    // Row 2: hint (slate-400). Two distinct text nodes confirm the
+    // 2-row layout reuses the Phase-22 IIFE pattern.
+    expect(screen.getByText(/Repo cannot be searched/i)).toBeInTheDocument();
+  }, 10000);
+
+  it("V3 ImpactsTable renders NEW + EXISTING sections with counts", () => {
+    // Mix of api_status='new' and api_status='existing' rows. The
+    // split section locks two distinct headers ("NEW APIs" /
+    // "EXISTING APIs") with their respective counts, both partitioned
+    // correctly.
+    const items: ImpactItem[] = [
+      {
+        id: 1,
+        http_path: "/v1/orders",
+        http_method: "GET",
+        platform: "seller_panel",
+        domain: "orders",
+        api_status: "new",
+        impact_status: "new_pending",
+        impact_type: "direct_route",
+        changed_source_file: "controllers/order.go",
+        indirect_file_path: null,
+        llm_model: "claude-sonnet-4-5",
+        llm_confidence_score: 0.92,
+        llm_impact_description: "added route",
+        llm_changed_functions: ["NewOrders"],
+        kb_file_path: null,
+        kb_populated: 0,
+        deprecation_state: "active",
+      },
+      {
+        id: 2,
+        http_path: "/v1/orders/{id}",
+        http_method: "GET",
+        platform: "seller_panel",
+        domain: "orders",
+        api_status: "new",
+        impact_status: "new_pending",
+        impact_type: "direct_route",
+        changed_source_file: "controllers/order.go",
+        indirect_file_path: null,
+        llm_model: "claude-sonnet-4-5",
+        llm_confidence_score: 0.88,
+        llm_impact_description: "added route",
+        llm_changed_functions: ["GetOrder"],
+        kb_file_path: null,
+        kb_populated: 0,
+        deprecation_state: "active",
+      },
+      {
+        id: 3,
+        http_path: "/v1/shipments",
+        http_method: "POST",
+        platform: "seller_panel",
+        domain: "shipments",
+        api_status: "existing",
+        impact_status: "impacted",
+        impact_type: "direct_controller",
+        changed_source_file: "controllers/shipment.go",
+        indirect_file_path: null,
+        llm_model: "claude-sonnet-4-5",
+        llm_confidence_score: 0.81,
+        llm_impact_description: "behavior change",
+        llm_changed_functions: ["CreateShipment"],
+        kb_file_path: "kb/shipments.md",
+        kb_populated: 1,
+        deprecation_state: "active",
+      },
+    ];
+    render(<ImpactsTable items={items} onRowClick={() => {}} />);
+    // Two section headers with the partition counts.
+    expect(screen.getByText(/NEW APIs/i)).toBeInTheDocument();
+    expect(screen.getByText(/EXISTING APIs/i)).toBeInTheDocument();
+    // Counts pill: 2 new + 1 existing.
+    const newApisHeader = screen.getByText(/NEW APIs/i).closest("header");
+    expect(newApisHeader?.textContent).toMatch(/2/);
+    const existingHeader = screen
+      .getByText(/EXISTING APIs/i)
+      .closest("header");
+    expect(existingHeader?.textContent).toMatch(/1/);
+    // Rows partitioned correctly — the new paths are present, the
+    // existing path is present, no row-leakage between sections.
+    expect(screen.getByText("/v1/orders")).toBeInTheDocument();
+    expect(screen.getByText("/v1/orders/{id}")).toBeInTheDocument();
+    expect(screen.getByText("/v1/shipments")).toBeInTheDocument();
+  });
+
+  it("V4 PrHeaderCard constructs GitHub URL FE-side from {org, repo, pr_number}", () => {
+    // Locks the FE-construction contract — pr_url is null (the HTTP-
+    // path insert path doesn't carry html_url) but the link still
+    // renders because {org, repo} arrived via the sync_runs join.
+    const pr: PrDetailHeader = {
+      id: 1,
+      sync_run_id: 1,
+      pr_number: 100877,
+      pr_title: "test",
+      pr_url: null,
+      pr_author: "alice",
+      merged_at: "2026-04-28T10:00:00Z",
+      merged_by: "bob",
+      base_branch: "master",
+      head_branch: "feat/x",
+      changed_files: 5,
+      processing_status: "done",
+      impact_counts: {
+        impacted: 0,
+        eligible_no_change: 0,
+        deprecated_skipped: 0,
+        new_pending: 0,
+      },
+      approved_by: ["bob"],
+      org: "bfrs",
+      repo: "MultiChannel_API",
+    };
+    render(<PrHeaderCard pr={pr} />);
+    const anchor = screen.getByRole("link", { name: /view on github/i });
+    expect(anchor).toHaveAttribute(
+      "href",
+      "https://github.com/bfrs/MultiChannel_API/pull/100877"
+    );
   });
 });
 

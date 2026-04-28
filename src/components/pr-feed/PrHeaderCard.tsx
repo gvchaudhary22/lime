@@ -16,6 +16,22 @@ export default function PrHeaderCard({ pr }: Props) {
   const statusCls =
     STATUS_COLORS[pr.processing_status] || "text-slate-400 bg-white/[0.05]";
 
+  // Phase-25 (Wave-3D) — pr_url is null in the DB for HTTP-path inserts
+  // (the github_pr_log row gets discovered via the search API which
+  // doesn't always carry html_url through). Construct the canonical
+  // GitHub PR URL FE-side from {org, repo, pr_number} so the link
+  // always renders when the sync_runs join surfaces both fields.
+  //
+  // Phase-25 review TS-M1 — fall back to pr.pr_url for legacy rows
+  // discovered before sr.org / sr.repo_name were exposed on the
+  // header response (pre-Phase-25 inserts have pr_url populated by
+  // the CLI ingest path; HTTP-path inserts have it NULL). Without the
+  // fallback, the link would silently disappear for any legacy row.
+  const githubUrl =
+    pr.org && pr.repo
+      ? `https://github.com/${pr.org}/${pr.repo}/pull/${pr.pr_number}`
+      : pr.pr_url || null;
+
   return (
     <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
       <div className="mb-1 flex items-center gap-3">
@@ -27,14 +43,14 @@ export default function PrHeaderCard({ pr }: Props) {
         >
           {pr.processing_status}
         </span>
-        {pr.pr_url && (
+        {githubUrl && (
           <a
-            href={pr.pr_url}
+            href={githubUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 text-xs text-slate-400 transition hover:text-cyan-400"
           >
-            open on GitHub
+            View on GitHub
             <ExternalLink className="h-3 w-3" />
           </a>
         )}
