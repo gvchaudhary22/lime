@@ -6,6 +6,37 @@ Format: [Semantic Versioning](https://semver.org/) — `v{milestone}.{phase}` al
 
 ---
 
+## [Unreleased] — feat/22-discover-error-hardening (Phase 22)
+
+### Hardening — Parse structured GitHub-error detail in `RepoSyncButton` (Phase 22 — lime side)
+
+**Branch**: `gvchaudhary22/lime` → `feat/22-discover-error-hardening` (cut from main; rebases on aiplatformkb Phase 22 merge)
+**aiplatformkb cross-link**: `BFRS-2/aiplatformkb` → `feat/22-discover-error-hardening`
+**Phase**: M1-P22 — single Wave (3) on the Lime side; backend half is the load-bearing change.
+**Tests**: 8 pass on `pr-feed-row-sync.test.tsx` (was 6; +2 cases). Surface across api-tools+pr-feed: 59 pass (was 57; +2 net). `tsc --noEmit` clean for Phase-22 files.
+
+#### Why
+
+Backend Phase 22 turns GitHub API failures into structured `4xx` responses with body shape `{detail: {kind, github_status, github_message, github_errors, url, hint}}`. Without this Lime change, `discoverPrs()` would still throw a generic `"discover failed"` and `RepoSyncButton` would render that — wasting the actionable hint the backend now provides.
+
+#### What shipped
+
+- **`src/lib/aiplatformkb-api.ts`** — centralized `_formatGitHubErrorDetail` parser inside the existing `jsonRequest` helper + `_runWithOpLabel(op, fn)` wrapper across `discoverPrs` / `triggerClassify` / `triggerPopulate`. Smart deviation from plan §3.3: shared helper instead of three duplicated `!res.ok` blocks. Public-API endpoints unchanged.
+- **`src/components/pr-sync/RepoSyncButton.tsx`** — IIFE block renders the error in 2 rows when `error.startsWith("GitHub ")`: row 1 the GitHub status + message in rose, row 2 the hint in slate-400. Non-prefixed errors fall through to the existing single-row rendering — back-compat preserved.
+- **2 new vitest cases** lock the contract: structured 422 with hint renders both rows; back-compat 500 with non-JSON body renders `discover failed (500)` single-row.
+
+#### Cross-repo dependency
+
+This commit lands on a branch that pairs with `BFRS-2/aiplatformkb#37` (the backend GitHubAPIError + handler mapping). Either repo can merge first — Lime's parser falls through cleanly to the legacy `discover failed (<status>)` shape when the backend hasn't yet shipped the structured detail.
+
+#### Tracked residuals (Phase 23)
+
+- **TS-MED-1** — `previewClassify` / `previewPopulate` / `cancelPrSync` not yet wrapped by `_runWithOpLabel`; gated on backend OQ-1 audit (those endpoints don't currently call GitHub in-process).
+- **TS-MED-2** — `GitHubErrorDetail.kind` typed as `string` instead of `"http" | "network" | "decode"` literal union. No XSS risk; recommend Zod schema.
+- **TS-LOW-4** — New error block lacks `aria-live` / `role="alert"` (perpetuates a pre-existing gap across all `pr-sync` buttons).
+
+---
+
 ## [Unreleased] — feat/21-hardening-sweep (Phase 21)
 
 ### Hardening — AbortController sweep on Reclassify page (Phase 21 — lime side)
