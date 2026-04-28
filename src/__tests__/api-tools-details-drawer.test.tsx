@@ -14,6 +14,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, fireEvent, act, cleanup } from "@testing-library/react";
 import React from "react";
 
+// Phase 19 — ApisTab now uses useRouter() for the Reclassify-button
+// navigation. Stub the App Router context so this test (which mounts
+// ApisTab once) doesn't trip the App Router invariant.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  useParams: () => ({}),
+}));
+
 const mockListAdminModules = vi.fn();
 const mockListAdminOperations = vi.fn();
 const mockReorderOperations = vi.fn();
@@ -72,25 +81,18 @@ const baseDetails: OperationDetails = {
   deprecated: false,
   elk_deprecated_api: false,
   ai_platform_eligible_api: true,
+  module_curated: false,
+  agent_curated: false,
+  persona_curated: false,
+  platform_curated: false,
   display_order: 30,
   reject_description: null,
   elk: {
     elk_host: "elk-01",
     elk_index: "star-api-internal-nginx-*",
-    primary_index: "star-api-internal-nginx-*",
     hit_count_7d: 12487,
     hit_count_updated_at: "2026-04-26T03:39:42Z",
     elk_deprecated_api: false,
-    per_day: {
-      day_1: 1932, day_2: 2104, day_3: 1987,
-      day_4: 1801, day_5: 1654, day_6: 1556, day_7: 1453,
-    },
-    per_index_breakdown: [
-      { index_name: "star-api-internal-nginx-*", hits_7d: 11430 },
-      { index_name: "sr-api-internal-nginx-*",    hits_7d:  1057 },
-    ],
-    status_breakdown: { "200": 11892, "400": 489, "500": 106 },
-    refreshed_at: "2026-04-26T03:39:42Z",
   },
   created_at: "2025-12-14T10:22:18Z",
   updated_at: "2026-04-27T10:01:07Z",
@@ -154,7 +156,7 @@ describe("OperationDetailsDrawer", () => {
     expect(screen.getByTestId("drawer-loading")).toBeInTheDocument();
   });
 
-  it("renders all 5 main sections after data loads", async () => {
+  it("renders all main sections after data loads", async () => {
     mockGetOperationDetails.mockResolvedValue(baseDetails);
     render(<OperationDetailsDrawer operationId={281} onClose={() => {}} />);
     // Description
@@ -169,27 +171,31 @@ describe("OperationDetailsDrawer", () => {
     expect(screen.getByTestId("drawer-elk-section")).toBeInTheDocument();
     expect(screen.getByTestId("drawer-visibility-section")).toBeInTheDocument();
     expect(screen.getByText("ndr_resolver")).toBeInTheDocument();
-    // ELK section labels (Day column)
-    expect(screen.getByText(/Per-day hits/)).toBeInTheDocument();
+    // ELK section surfaces the api_listing-derived summary fields
+    expect(screen.getByText("elk_host")).toBeInTheDocument();
+    expect(screen.getByText("hit_count_7d")).toBeInTheDocument();
     // Visibility section text matches the shared constant
     expect(screen.getByTestId("drawer-visibility-explainer")).toHaveTextContent(
       VISIBILITY_EXPLAINER.split("\n")[0]   // first line as proxy
     );
   });
 
-  it("shows empty-state for ELK when per_day is {}", async () => {
+  it("renders ELK summary as null when refresh pipeline never ran", async () => {
     mockGetOperationDetails.mockResolvedValue({
       ...baseDetails,
       elk: {
-        ...baseDetails.elk,
-        per_day: {},
-        per_index_breakdown: [],
-        status_breakdown: null,
-        refreshed_at: null,
+        elk_host: null,
+        elk_index: null,
+        hit_count_7d: null,
+        hit_count_updated_at: null,
+        elk_deprecated_api: false,
       },
     });
     render(<OperationDetailsDrawer operationId={281} onClose={() => {}} />);
-    expect(await screen.findByTestId("drawer-elk-empty")).toBeInTheDocument();
+    // Drawer mounts; ELK section is rendered with em-dashes for the
+    // null api_listing fields rather than crashing.
+    expect(await screen.findByTestId("drawer-elk-section")).toBeInTheDocument();
+    expect(screen.getByText("elk_host")).toBeInTheDocument();
   });
 
   it("Escape key closes drawer", async () => {
@@ -280,5 +286,33 @@ describe("OperationDetailsDrawer", () => {
     });
     expect(screen.getByText(/Second operation description/)).toBeInTheDocument();
     expect(screen.queryByText(/Records the seller's chosen response/)).toBeNull();
+  });
+
+  // Phase 19 — manual-override lock badges next to module/agent/persona.
+  it("renders manual-override badges when curated flags are true", async () => {
+    mockGetOperationDetails.mockResolvedValue({
+      ...baseDetails,
+      module_curated: true,
+      agent_curated: false,
+      persona_curated: true,
+    });
+    render(<OperationDetailsDrawer operationId={281} onClose={() => {}} />);
+    await screen.findByTestId("drawer-description");
+    expect(screen.getByTestId("drawer-module-lock-badge")).toBeInTheDocument();
+    expect(screen.queryByTestId("drawer-agent-lock-badge")).toBeNull();
+    expect(screen.getByTestId("drawer-persona-lock-badge")).toBeInTheDocument();
+  });
+
+  // Phase 19 amendment — platform also surfaces a lock badge when
+  // platform_curated is true (curator pinned the platform via the
+  // Reclassify page; populate_kb won't clobber it on future syncs).
+  it("renders platform lock badge when platform_curated is true", async () => {
+    mockGetOperationDetails.mockResolvedValue({
+      ...baseDetails,
+      platform_curated: true,
+    });
+    render(<OperationDetailsDrawer operationId={281} onClose={() => {}} />);
+    await screen.findByTestId("drawer-description");
+    expect(screen.getByTestId("drawer-platform-lock-badge")).toBeInTheDocument();
   });
 });

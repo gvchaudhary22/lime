@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Eye, EyeOff, GripVertical, Info, Loader2, Save } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, Eye, EyeOff, GripVertical, Info, Loader2, Save, Wand2 } from "lucide-react";
 import {
   AiplatformkbApiError,
   getOperationCounts,
   listAdminModules,
   listAdminOperations,
+  listAdminPlatforms,
   reorderOperations,
   setOperationEligibility,
 } from "@/lib/aiplatformkb-api";
@@ -14,11 +16,6 @@ import { visibilityTooltip } from "@/lib/api-tools-copy";
 import type { AdminModule, AdminOperation, OperationCountsResponse } from "@/types/api-tools";
 import SortableList from "@/components/primitives/SortableList";
 import OperationDetailsDrawer from "@/components/api-tools/OperationDetailsDrawer";
-
-const PLATFORMS = [
-  "seller_panel", "icrm_platform", "app_platform", "oneapp", "ondc",
-  "zop_platform", "hyperlocal", "external_panel", "srx", "internal", "cargo",
-];
 
 /**
  * APIs tab — Wave 3-LIME-D.
@@ -31,7 +28,13 @@ function _isDeprecated(op: AdminOperation): boolean {
 }
 
 export default function ApisTab() {
+  const router = useRouter();
   const [modules, setModules] = useState<AdminModule[] | null>(null);
+  // Phase-20 — platforms sourced dynamically from /admin/platforms (was a
+  // hardcoded 11-value array that drifted from the DB). Empty during
+  // initial load; the dropdown still renders the currently-selected
+  // platform via a fallback <option> below so the page stays functional.
+  const [platforms, setPlatforms] = useState<string[]>([]);
   const [platform, setPlatform] = useState("seller_panel");
   const [moduleName, setModuleName] = useState("");
   const [serverOps, setServerOps] = useState<AdminOperation[] | null>(null);
@@ -69,6 +72,18 @@ export default function ApisTab() {
       .catch((err) => { if (alive) setError(_msg(err)); });
     return () => { alive = false; };
   }, [platform]);
+
+  // Phase-20 — platforms list sourced from /admin/platforms (DB-backed
+  // ground truth). Empty array on fetch failure is acceptable — the
+  // current platform's <option> is rendered separately below so the
+  // dropdown always shows the selected value.
+  useEffect(() => {
+    let alive = true;
+    listAdminPlatforms()
+      .then((rows) => { if (alive) setPlatforms(rows); })
+      .catch(() => { /* graceful degradation — empty dropdown is fine */ });
+    return () => { alive = false; };
+  }, []);
 
   // TS-H2 / TS-M1 — alive-guard prevents a stale promise (e.g. user
   // switched module mid-fetch) from overwriting the currently-displayed
@@ -155,7 +170,7 @@ export default function ApisTab() {
     // dirty-marked by the change.
     const flip = (list: AdminOperation[]) =>
       list.map((o) => (o.id === op.id ? { ...o, ai_platform_eligible_api: newFlag } : o));
-    setLocalOps(flip);
+    setLocalOps((prev) => (prev ? flip(prev) : prev));
     setServerOps((prev) => (prev ? flip(prev) : prev));
 
     try {
@@ -164,7 +179,7 @@ export default function ApisTab() {
       // Rollback both copies.
       const revert = (list: AdminOperation[]) =>
         list.map((o) => (o.id === op.id ? { ...o, ai_platform_eligible_api: !newFlag } : o));
-      setLocalOps(revert);
+      setLocalOps((prev) => (prev ? revert(prev) : prev));
       setServerOps((prev) => (prev ? revert(prev) : prev));
       setError(_msg(err));
     }
@@ -214,9 +229,16 @@ export default function ApisTab() {
           <select
             value={platform}
             onChange={(e) => setPlatform(e.target.value)}
+            data-testid="apis-tab-platform-select"
             className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-zinc-100"
           >
-            {PLATFORMS.map((p) => <option key={p} value={p}>{p}</option>)}
+            {/* Render the currently-selected platform first if the
+                fetched list hasn't loaded yet (or doesn't include it),
+                so the dropdown always reflects the active value. */}
+            {!platforms.includes(platform) && (
+              <option value={platform}>{platform}</option>
+            )}
+            {platforms.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
         </label>
         <label className="text-xs text-zinc-400">
@@ -371,6 +393,23 @@ export default function ApisTab() {
                     >
                       <Info className="h-3 w-3" />
                       Details
+                    </button>
+                    {/* Phase 19 — Reclassify button. Same stopPropagation +
+                        onPointerDown defenses as Details so the SortableList
+                        drag pointer-handler doesn't grab the click. */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        router.push(`/chat/api-tools/reclassify/${op.id}`);
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      title={`Reclassify module / agent / persona for #${op.id}`}
+                      data-testid={`reclassify-btn-${op.id}`}
+                      className="flex items-center gap-1 rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
+                    >
+                      <Wand2 className="h-3 w-3" />
+                      Reclassify
                     </button>
                     <button
                       onClick={(e) => {

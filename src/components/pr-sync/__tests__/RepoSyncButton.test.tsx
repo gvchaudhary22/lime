@@ -12,13 +12,30 @@ function okJson(body: unknown) {
   return { ok: true, status: 200, json: async () => body };
 }
 
-const DISCOVER_OK = okJson({
+// Phase 23 — discoverPrs returns 202 with {sync_run_id, status:"running",
+// scope}. Polling drives terminal status; these tests only care about
+// payload shape on the FIRST POST, so we resolve the POST 202 and stub
+// the subsequent GET /status with a never-resolving promise to keep the
+// polling loop quiet during the assertion window.
+const DISCOVER_ACCEPTED = okJson({
   sync_run_id: 1,
-  discovered_count: 0,
-  discovered_pr_ids: [],
-  total_changed_files: 0,
-  est_total_classify_cost_usd: 0,
+  status: "running",
+  scope: "shiprocket/MultiChannel_API",
 });
+
+function discoverPostThenHangingStatus() {
+  // First call (POST /discover) → 202 accepted.
+  mockFetch.mockResolvedValueOnce(DISCOVER_ACCEPTED);
+  // Subsequent calls (GET /status from useDiscoverJobStatus) → never resolve.
+  // Keeps the test in the running state until the timing window expires.
+  mockFetch.mockImplementation(() => new Promise(() => {}));
+}
+
+function getDiscoverPostBody(): Record<string, unknown> {
+  // The first call is the POST /discover; subsequent are GET /status.
+  const [, init] = mockFetch.mock.calls[0];
+  return JSON.parse((init as RequestInit).body as string);
+}
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -30,11 +47,6 @@ afterEach(() => {
 
 function getBranchInput() {
   return screen.getByLabelText(/base branch/i) as HTMLInputElement;
-}
-
-function getDiscoverBody(): Record<string, unknown> {
-  const [, init] = mockFetch.mock.calls[0];
-  return JSON.parse((init as RequestInit).body as string);
 }
 
 describe("RepoSyncButton — branch input", () => {
@@ -57,7 +69,7 @@ describe("RepoSyncButton — branch input", () => {
   });
 
   it("passes base_branch in payload when input has a value", async () => {
-    mockFetch.mockResolvedValueOnce(DISCOVER_OK);
+    discoverPostThenHangingStatus();
     render(
       <RepoSyncButton
         org="shiprocket"
@@ -68,8 +80,12 @@ describe("RepoSyncButton — branch input", () => {
     fireEvent.change(getBranchInput(), { target: { value: "main" } });
     fireEvent.click(screen.getByRole("button", { name: /sync new prs/i }));
 
-    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
-    expect(getDiscoverBody()).toEqual({
+    // Wait until at least the POST has fired (subsequent GET /status calls
+    // hang per discoverPostThenHangingStatus()).
+    await waitFor(() =>
+      expect(mockFetch.mock.calls.length).toBeGreaterThanOrEqual(1)
+    );
+    expect(getDiscoverPostBody()).toEqual({
       org: "shiprocket",
       repo: "MultiChannel_API",
       base_branch: "main",
@@ -77,7 +93,7 @@ describe("RepoSyncButton — branch input", () => {
   });
 
   it("omits base_branch when input is empty (back-compat)", async () => {
-    mockFetch.mockResolvedValueOnce(DISCOVER_OK);
+    discoverPostThenHangingStatus();
     render(
       <RepoSyncButton
         org="shiprocket"
@@ -87,14 +103,16 @@ describe("RepoSyncButton — branch input", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /sync new prs/i }));
 
-    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
-    const body = getDiscoverBody();
+    await waitFor(() =>
+      expect(mockFetch.mock.calls.length).toBeGreaterThanOrEqual(1)
+    );
+    const body = getDiscoverPostBody();
     expect(body).toEqual({ org: "shiprocket", repo: "MultiChannel_API" });
     expect(body).not.toHaveProperty("base_branch");
   });
 
   it("treats whitespace-only input as empty (paranoia)", async () => {
-    mockFetch.mockResolvedValueOnce(DISCOVER_OK);
+    discoverPostThenHangingStatus();
     render(
       <RepoSyncButton
         org="shiprocket"
@@ -105,14 +123,16 @@ describe("RepoSyncButton — branch input", () => {
     fireEvent.change(getBranchInput(), { target: { value: "   " } });
     fireEvent.click(screen.getByRole("button", { name: /sync new prs/i }));
 
-    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
-    const body = getDiscoverBody();
+    await waitFor(() =>
+      expect(mockFetch.mock.calls.length).toBeGreaterThanOrEqual(1)
+    );
+    const body = getDiscoverPostBody();
     expect(body).toEqual({ org: "shiprocket", repo: "MultiChannel_API" });
     expect(body).not.toHaveProperty("base_branch");
   });
 
   it("trims surrounding whitespace from non-empty input", async () => {
-    mockFetch.mockResolvedValueOnce(DISCOVER_OK);
+    discoverPostThenHangingStatus();
     render(
       <RepoSyncButton
         org="shiprocket"
@@ -123,8 +143,10 @@ describe("RepoSyncButton — branch input", () => {
     fireEvent.change(getBranchInput(), { target: { value: "  develop  " } });
     fireEvent.click(screen.getByRole("button", { name: /sync new prs/i }));
 
-    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
-    expect(getDiscoverBody()).toEqual({
+    await waitFor(() =>
+      expect(mockFetch.mock.calls.length).toBeGreaterThanOrEqual(1)
+    );
+    expect(getDiscoverPostBody()).toEqual({
       org: "shiprocket",
       repo: "MultiChannel_API",
       base_branch: "develop",

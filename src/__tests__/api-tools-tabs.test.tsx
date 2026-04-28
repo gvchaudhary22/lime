@@ -6,12 +6,22 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, fireEvent, act, cleanup } from "@testing-library/react";
 import React from "react";
 
+// Phase 19 — ApisTab now uses useRouter() to navigate to /chat/api-tools/
+// reclassify/[id]. Stub the App Router context so the tests don't trip the
+// "invariant expected app router to be mounted" runtime check.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  useParams: () => ({}),
+}));
+
 const mockListAdminModules = vi.fn();
 const mockReorderModules = vi.fn();
 const mockListAdminOperations = vi.fn();
 const mockReorderOperations = vi.fn();
 const mockSetOperationEligibility = vi.fn();
 const mockGetOperationCounts = vi.fn();
+const mockListAdminPlatforms = vi.fn();
 const mockListTools = vi.fn();
 const mockGetToolApis = vi.fn();
 const mockCreateTool = vi.fn();
@@ -31,6 +41,7 @@ vi.mock("@/lib/aiplatformkb-api", async () => {
     reorderOperations: (...a: unknown[]) => mockReorderOperations(...a),
     setOperationEligibility: (...a: unknown[]) => mockSetOperationEligibility(...a),
     getOperationCounts: (...a: unknown[]) => mockGetOperationCounts(...a),
+    listAdminPlatforms: (...a: unknown[]) => mockListAdminPlatforms(...a),
     listTools: (...a: unknown[]) => mockListTools(...a),
     getToolApis: (...a: unknown[]) => mockGetToolApis(...a),
     createTool: (...a: unknown[]) => mockCreateTool(...a),
@@ -56,6 +67,14 @@ beforeEach(() => {
     deprecated: 99,
     by_module: { Order: { total: 119, active: 98, deprecated: 21 } },
   });
+  // Phase-20 — ApisTab now sources the platform-filter dropdown from
+  // listAdminPlatforms (was hardcoded). Tests that assert specific
+  // dropdown contents override with mockResolvedValueOnce.
+  mockListAdminPlatforms.mockResolvedValue([
+    "icrm_platform",
+    "seller_panel",
+    "srx",
+  ]);
 });
 
 afterEach(() => {
@@ -184,6 +203,104 @@ describe("ApisTab", () => {
       expect(screen.getByText("98")).toBeInTheDocument();    // module active
       expect(screen.getByText("21 dep")).toBeInTheDocument(); // module deprecated
     });
+  });
+
+  // Phase 19 — Reclassify button surfaces between Details and visibility
+  // toggle. Asserts presence + testid; the navigation behaviour itself is
+  // covered by the dedicated reclassify-page test suite.
+  it("renders a Reclassify button per row with the correct testid", async () => {
+    mockListAdminModules.mockResolvedValueOnce([
+      { module_name: "Order", display_name: "Orders", display_order: 20 },
+    ]);
+    mockListAdminOperations.mockResolvedValueOnce([
+      {
+        id: 1744,
+        http_method: "POST",
+        path: "/api/v1/auth/logout",
+        display_order: null,
+        tool_name: "auth_logout",
+        hit_count_7d: 64378,
+        ai_platform_eligible_api: false,
+        read_write_type: "WRITE",
+        risk_level: "medium",
+        deprecated: false,
+        elk_deprecated_api: false,
+      },
+    ]);
+    render(<ApisTab />);
+    await waitFor(() => screen.getByText("/api/v1/auth/logout"));
+    const reclassifyBtn = screen.getByTestId("reclassify-btn-1744");
+    expect(reclassifyBtn).toBeInTheDocument();
+    expect(reclassifyBtn).toHaveTextContent(/Reclassify/i);
+  });
+
+  // Phase-20 — platform-filter dropdown sources dynamically from
+  // listAdminPlatforms (was a hardcoded 11-value array). Asserts the
+  // option set matches the mocked fetch return rather than a hardcoded
+  // const inside the component.
+  it("platform-filter options come from listAdminPlatforms (dynamic, not hardcoded)", async () => {
+    mockListAdminModules.mockResolvedValueOnce([
+      { module_name: "Order", display_name: "Orders", display_order: 20 },
+    ]);
+    mockListAdminOperations.mockResolvedValueOnce([]);
+    mockListAdminPlatforms.mockResolvedValueOnce([
+      "external_panel",
+      "icrm_platform",
+      "seller_panel",
+      "srf_warehouse_platform",
+      "standard",
+    ]);
+    render(<ApisTab />);
+    // Wait for the platforms fetch to resolve so the <option>s render.
+    await waitFor(() => {
+      expect(mockListAdminPlatforms).toHaveBeenCalled();
+    });
+    const platformSelect = (await screen.findByTestId(
+      "apis-tab-platform-select",
+    )) as HTMLSelectElement;
+    await waitFor(() => {
+      const optionValues = Array.from(platformSelect.options).map((o) => o.value);
+      // The 5 fetched values must be present (order in dropdown is the
+      // fetched order). seller_panel is the default value, so it appears
+      // exactly once — no duplicate fallback option once the list loads.
+      expect(optionValues).toEqual(
+        expect.arrayContaining([
+          "external_panel",
+          "icrm_platform",
+          "seller_panel",
+          "srf_warehouse_platform",
+          "standard",
+        ]),
+      );
+      // The hardcoded "oneapp" / "ondc" / "hyperlocal" values from the
+      // pre-Phase-20 const are GONE from the dropdown (they're not in
+      // the mocked fetch return).
+      expect(optionValues).not.toContain("oneapp");
+      expect(optionValues).not.toContain("ondc");
+      expect(optionValues).not.toContain("hyperlocal");
+    });
+  });
+
+  // Phase-20 — graceful degradation when the platforms fetch fails.
+  // The page must not crash; the dropdown shows just the currently-
+  // selected value via the fallback <option>.
+  it("platform-filter renders gracefully when listAdminPlatforms fetch fails", async () => {
+    mockListAdminModules.mockResolvedValueOnce([
+      { module_name: "Order", display_name: "Orders", display_order: 20 },
+    ]);
+    mockListAdminOperations.mockResolvedValueOnce([]);
+    mockListAdminPlatforms.mockRejectedValueOnce(new Error("admin/platforms 500"));
+    render(<ApisTab />);
+    // Page still mounts and the platform select renders.
+    const platformSelect = (await screen.findByTestId(
+      "apis-tab-platform-select",
+    )) as HTMLSelectElement;
+    expect(platformSelect).toBeInTheDocument();
+    // Default value "seller_panel" is still rendered as a single
+    // fallback <option>; no crash from the rejected promise.
+    expect(platformSelect.value).toBe("seller_panel");
+    const optionValues = Array.from(platformSelect.options).map((o) => o.value);
+    expect(optionValues).toEqual(["seller_panel"]);
   });
 
   it("eligibility toggle flips the per-row state and posts PATCH", async () => {

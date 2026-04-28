@@ -138,26 +138,19 @@ export interface ReorderToolApisResponse {
   reordered: number;
 }
 
-// ── Operation details drawer (Phase 16) ─────────────────────────────────
+// ── Operation details drawer ────────────────────────────────────────────
 // Mirrors the backend response of GET /admin/operations/{id}/details.
-// Read-only deep-read for the lime "See details" drawer in ApisTab.
-
-export interface ElkPerIndexBreakdown {
-  index_name: string;
-  hits_7d: number;
-}
+// Read-only deep-read for the lime "See details" drawer in ApisTab. ELK
+// fields come from the denormalized api_listing columns; the per-day,
+// per-index, and status breakdowns are not surfaced (operators consult
+// Kibana directly when that level of detail is needed).
 
 export interface ElkDetails {
   elk_host: string | null;
   elk_index: string | null;
-  primary_index: string | null;
   hit_count_7d: number | null;
   hit_count_updated_at: string | null;        // ISO 8601 from backend
   elk_deprecated_api: boolean;
-  per_day: Record<string, number>;            // day_1..day_7 → count (NULL days omitted)
-  per_index_breakdown: ElkPerIndexBreakdown[];
-  status_breakdown: Record<string, number> | null;
-  refreshed_at: string | null;                // ISO 8601 from backend
 }
 
 export interface OperationDetails {
@@ -196,13 +189,71 @@ export interface OperationDetails {
   deprecated: boolean;
   elk_deprecated_api: boolean;
   ai_platform_eligible_api: boolean;
+  // Phase-19 — manual-override lock flags. true = curator pinned this
+  // field; populate_kb's UPSERT will preserve it on future syncs.
+  module_curated: boolean;
+  agent_curated: boolean;
+  persona_curated: boolean;
+  // Phase-19 amendment — platform is also curator-overridable now.
+  platform_curated: boolean;
   display_order: number | null;
   reject_description: string | null;
-  // ELK details (joined)
+  // ELK summary (from api_listing denormalized columns)
   elk: ElkDetails;
   // Metadata
   created_at: string | null;
   updated_at: string | null;
+}
+
+// ── Reclassify (Phase 19) ──────────────────────────────────────────────
+
+export interface SetClassificationPayload {
+  module?: string;
+  agent?: string;
+  persona?: string;
+  // Phase-19 amendment — when set, backend flips platform_curated = 1
+  // and the populate_kb UPSERT will preserve this value going forward.
+  // Validated server-side against /^[a-z][a-z0-9_]{0,63}$/.
+  platform?: string;
+}
+
+export interface SetClassificationResponse {
+  id: number;
+  module: string;
+  agent: string | null;
+  persona: string | null;
+  module_curated: boolean;
+  agent_curated: boolean;
+  persona_curated: boolean;
+  platform: string;
+  // Phase-19 amendment — surfaced in the response so the UI can refresh
+  // the lock badge after Save.
+  platform_curated: boolean;
+}
+
+export interface OperationSuggestCurrent {
+  module: string;
+  agent: string | null;
+  persona: string | null;
+  // Phase-20 — the row's current platform value, mirrored in the suggest
+  // payload so the UI can show "current → suggested" deltas.
+  platform: string | null;
+}
+
+export interface OperationSuggest {
+  module: string | null;
+  agent: string | null;
+  persona: string | null;
+  // Phase-20 — LLM's platform pick (or null on out-of-enum drop). The
+  // backend validates against the platforms table allowlist.
+  platform: string | null;
+  current: OperationSuggestCurrent;
+  reasoning: string;
+  model: string;
+  input_tokens: number;
+  output_tokens: number;
+  latency_ms: number;
+  fallback: boolean;
 }
 
 

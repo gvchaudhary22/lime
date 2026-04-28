@@ -33,13 +33,13 @@ afterEach(() => {
 
 describe("pr-sync client", () => {
   it("discoverPrs POSTs through admin proxy with body", async () => {
+    // Phase-23 — discover is async. POST returns 202 with
+    // {sync_run_id, status:"running", scope}.
     mockFetch.mockResolvedValueOnce(
       okJson({
         sync_run_id: 42,
-        discovered_count: 2,
-        discovered_pr_ids: [101, 102],
-        total_changed_files: 12,
-        est_total_classify_cost_usd: 0.144,
+        status: "running",
+        scope: "shiprocket/MultiChannel_API",
       })
     );
     const r = await discoverPrs({ org: "shiprocket", repo: "MultiChannel_API" });
@@ -50,7 +50,8 @@ describe("pr-sync client", () => {
       org: "shiprocket",
       repo: "MultiChannel_API",
     });
-    expect(r.discovered_count).toBe(2);
+    expect(r.sync_run_id).toBe(42);
+    expect(r.status).toBe("running");
   });
 
   it("previewClassify uses GET", async () => {

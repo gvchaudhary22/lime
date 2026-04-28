@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ComponentPropsWithoutRef } from "react";
-import { AlertTriangle, Eye, EyeOff, Loader2, X } from "lucide-react";
+import { AlertTriangle, Eye, EyeOff, Loader2, Lock, X } from "lucide-react";
 
 import {
   AiplatformkbApiError,
@@ -187,11 +187,43 @@ export default function OperationDetailsDrawer({ operationId, onClose }: Props) 
               </Section>
 
               <Section label="Classification">
-                <KV label="platform" value={state.data.platform} />
-                <KV label="module" value={state.data.module} />
+                <KV
+                  label="platform"
+                  value={state.data.platform}
+                  badge={
+                    state.data.platform_curated ? (
+                      <CuratedBadge testid="drawer-platform-lock-badge" />
+                    ) : null
+                  }
+                />
+                <KV
+                  label="module"
+                  value={state.data.module}
+                  badge={
+                    state.data.module_curated ? (
+                      <CuratedBadge testid="drawer-module-lock-badge" />
+                    ) : null
+                  }
+                />
                 <KV label="sub_module" value={state.data.sub_module} />
-                <KV label="agent" value={state.data.agent} />
-                <KV label="persona" value={state.data.persona} />
+                <KV
+                  label="agent"
+                  value={state.data.agent}
+                  badge={
+                    state.data.agent_curated ? (
+                      <CuratedBadge testid="drawer-agent-lock-badge" />
+                    ) : null
+                  }
+                />
+                <KV
+                  label="persona"
+                  value={state.data.persona}
+                  badge={
+                    state.data.persona_curated ? (
+                      <CuratedBadge testid="drawer-persona-lock-badge" />
+                    ) : null
+                  }
+                />
                 <KV label="intent" value={state.data.intent} />
                 <KV label="seller_menu_key" value={state.data.seller_menu_key} />
                 <KV label="ui_section" value={state.data.ui_section} />
@@ -218,10 +250,7 @@ export default function OperationDetailsDrawer({ operationId, onClose }: Props) 
               </Section>
 
               <Section label="ELK details" data-testid="drawer-elk-section">
-                <ElkBlock
-                  elk={state.data.elk}
-                  apiUpdatedAt={state.data.updated_at}
-                />
+                <ElkBlock elk={state.data.elk} />
               </Section>
 
               <Section label="Visibility" data-testid="drawer-visibility-section">
@@ -288,14 +317,19 @@ function KV({
   label,
   value,
   mono,
+  badge,
 }: {
   label: string;
   value: string | null;
   mono?: boolean;
+  badge?: React.ReactNode;
 }) {
   return (
     <div className="flex gap-3 py-0.5 text-xs">
-      <span className="min-w-[140px] shrink-0 text-slate-500">{label}</span>
+      <span className="flex min-w-[140px] shrink-0 items-center gap-1 text-slate-500">
+        {label}
+        {badge}
+      </span>
       <span
         className={`flex-1 break-words text-slate-200 ${mono ? "font-mono text-[11px]" : ""}`}
       >
@@ -305,134 +339,44 @@ function KV({
   );
 }
 
-function ElkBlock({
-  elk,
-  apiUpdatedAt,
-}: {
-  elk: OperationDetails["elk"];
-  apiUpdatedAt: string | null;
-}) {
-  const stale = isStale(elk.refreshed_at || elk.hit_count_updated_at);
-  const breakdown: ElkPerIndexBreakdown[] = elk.per_index_breakdown ?? [];
-  const dayEntries = Object.entries(elk.per_day ?? {}).sort((a, b) =>
-    a[0].localeCompare(b[0])
+// Phase 19 — manual-override lock badge for the Classification section.
+// Surfaced when the row's <col>_curated boolean is true, matching the
+// Reclassify page's amber-warning idiom.
+function CuratedBadge({ testid }: { testid: string }) {
+  return (
+    <span
+      data-testid={testid}
+      title="manual override — kb_populate won't re-classify this field"
+      className="inline-flex items-center text-amber-400"
+    >
+      <Lock className="h-3 w-3" />
+    </span>
   );
+}
+
+function ElkBlock({ elk }: { elk: OperationDetails["elk"] }) {
+  const stale = isStale(elk.hit_count_updated_at);
 
   return (
-    <div className="space-y-3">
-      <div>
-        <KV label="elk_host" value={elk.elk_host} />
-        <KV label="primary_index" value={elk.primary_index ?? elk.elk_index} mono />
-        <KV
-          label="hit_count_7d"
-          value={elk.hit_count_7d !== null ? elk.hit_count_7d.toLocaleString() : null}
-        />
-        <KV label="elk_deprecated_api" value={String(elk.elk_deprecated_api)} />
-        <KV
-          label={stale ? "refreshed_at (stale)" : "refreshed_at"}
-          value={fmtDate(elk.refreshed_at) || fmtDate(elk.hit_count_updated_at)}
-        />
-        {stale && (
-          <div className="mt-1 rounded border border-amber-900/40 bg-amber-950/30 px-2 py-1 text-[11px] text-amber-300">
-            Last refresh &gt; 24 h ago. Run{" "}
-            <code className="font-mono">
-              pillar_api_catalog_quick_elk_script.py --table-name api_listing
-            </code>{" "}
-            to refresh.
-          </div>
-        )}
-      </div>
-
-      <div>
-        <h5 className="mb-1 text-[11px] uppercase tracking-wide text-slate-500">
-          Per-day hits (last 7 days)
-        </h5>
-        {dayEntries.length === 0 ? (
-          <div
-            data-testid="drawer-elk-empty"
-            className="rounded border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-xs text-slate-500"
-          >
-            No per-day breakdown recorded yet.
-          </div>
-        ) : (
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-white/[0.06] text-slate-500">
-                <th className="py-1 text-left font-normal">Day</th>
-                <th className="py-1 text-right font-normal">Hits</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dayEntries.map(([day, count]) => (
-                <tr key={day} className="border-b border-white/[0.04]">
-                  <td className="py-1 font-mono text-slate-300">{day}</td>
-                  <td className="py-1 text-right font-mono text-slate-200">
-                    {count.toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <div>
-        <h5 className="mb-1 text-[11px] uppercase tracking-wide text-slate-500">
-          Per-index breakdown
-        </h5>
-        {breakdown.length === 0 ? (
-          <div className="rounded border border-white/[0.06] bg-white/[0.02] px-3 py-2 text-xs text-slate-500">
-            —
-          </div>
-        ) : (
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="border-b border-white/[0.06] text-slate-500">
-                <th className="py-1 text-left font-normal">Index</th>
-                <th className="py-1 text-right font-normal">Hits (7d)</th>
-              </tr>
-            </thead>
-            <tbody>
-              {breakdown.map((b) => (
-                <tr key={b.index_name} className="border-b border-white/[0.04]">
-                  <td className="py-1 font-mono text-slate-300">
-                    {b.index_name}
-                  </td>
-                  <td className="py-1 text-right font-mono text-slate-200">
-                    {b.hits_7d.toLocaleString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {elk.status_breakdown && (
-        <div>
-          <h5 className="mb-1 text-[11px] uppercase tracking-wide text-slate-500">
-            HTTP status breakdown
-          </h5>
-          <div className="flex flex-wrap gap-1">
-            {Object.entries(elk.status_breakdown)
-              .sort((a, b) => a[0].localeCompare(b[0]))
-              .map(([status, count]) => {
-                const code = parseInt(status, 10);
-                const bad = Number.isFinite(code) && code >= 400;
-                return (
-                  <span
-                    key={status}
-                    className={`rounded px-1.5 py-0.5 font-mono text-[10px] ${
-                      bad
-                        ? "bg-red-900/30 text-red-300"
-                        : "bg-emerald-900/30 text-emerald-300"
-                    }`}
-                  >
-                    {status}: {count.toLocaleString()}
-                  </span>
-                );
-              })}
-          </div>
+    <div>
+      <KV label="elk_host" value={elk.elk_host} />
+      <KV label="elk_index" value={elk.elk_index} mono />
+      <KV
+        label="hit_count_7d"
+        value={elk.hit_count_7d !== null ? elk.hit_count_7d.toLocaleString() : null}
+      />
+      <KV label="elk_deprecated_api" value={String(elk.elk_deprecated_api)} />
+      <KV
+        label={stale ? "Last refresh (stale)" : "Last refresh"}
+        value={fmtDate(elk.hit_count_updated_at)}
+      />
+      {stale && (
+        <div className="mt-1 rounded border border-amber-900/40 bg-amber-950/30 px-2 py-1 text-[11px] text-amber-300">
+          Last refresh &gt; 24 h ago. Run{" "}
+          <code className="font-mono">
+            pillar_api_catalog_quick_elk_script.py --table-name api_listing
+          </code>{" "}
+          to refresh.
         </div>
       )}
     </div>

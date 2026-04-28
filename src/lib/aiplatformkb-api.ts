@@ -64,15 +64,23 @@ function buildQuery(
   return s ? `?${s}` : "";
 }
 
-async function getJson<T>(path: string): Promise<T> {
+async function getJson<T>(
+  path: string,
+  options?: { signal?: AbortSignal },
+): Promise<T> {
   // /admin/* routes through Lime server-side proxy (Phase 13 Wave 1C);
   // public endpoints stay direct against aiplatformkb.
   const url = path.startsWith("/admin/") ? adminUrl(path) : `${BASE_URL}${path}`;
   // Note: client never attaches Authorization. The proxy injects it for
   // /admin/* calls; public endpoints remain auth-less per Phase-6 contract.
+  // Phase-21 (Wave-1C) — optional AbortSignal threaded into fetch so
+  // call sites that race overlapping fetches (Reclassify page's
+  // platform-onChange + Use-suggestion handlers) can cancel stale
+  // in-flight requests instead of letting late resolutions clobber state.
   const res = await fetch(url, {
     method: "GET",
     headers: { Accept: "application/json" },
+    signal: options?.signal,
   });
 
   let body: unknown = null;
@@ -153,6 +161,7 @@ import type {
   ListOperationsParams,
   OperationCountsResponse,
   OperationDetails,
+  OperationSuggest,
   PatchToolPayload,
   PublicToolsResponse,
   RemoveApiFromToolResponse,
@@ -162,10 +171,41 @@ import type {
   ReorderOperationsResponse,
   ReorderToolApisPayload,
   ReorderToolApisResponse,
+  SetClassificationPayload,
+  SetClassificationResponse,
   SetEligibilityPayload,
   SetEligibilityResponse,
   ToolMember,
 } from "@/types/api-tools";
+
+// Phase-22 (Wave-3A) — admin/pr-sync/discover (and classify/populate, which
+// shell out to the same GitHub-fetch path) now return a structured 4xx/502
+// detail when GitHub itself fails. Shape:
+//   { detail: { kind: "http"|"network"|"decode",
+//               github_status: number, github_message: string,
+//               github_errors?: [...], url?: string, hint?: string } }
+// We surface that as a single human-readable Error.message so the FE
+// component can render it (RepoSyncButton splits on " — " for a 2-row
+// layout). Non-structured detail (existing FastAPI string detail) falls
+// back to the legacy stringification so unrelated admin errors keep
+// their current message.
+//
+// Phase-23 (Wave-3A) — the GitHubErrorDetail shape moved into
+// `@/types/pr-sync` so DiscoverJobStatus.error_detail can refer to it.
+// The local alias is kept here for backward compatibility with the
+// existing _formatGitHubErrorDetail call site.
+import type { GitHubErrorDetail } from "@/types/pr-sync";
+
+function _formatGitHubErrorDetail(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const detailRaw = (payload as { detail?: unknown }).detail;
+  if (!detailRaw || typeof detailRaw !== "object") return null;
+  const d = detailRaw as GitHubErrorDetail;
+  if (!d.kind || !d.github_message) return null;
+  const head = `GitHub ${d.github_status ?? "error"}: ${d.github_message}`;
+  const tail = d.hint ? ` — ${d.hint}` : "";
+  return head + tail;
+}
 
 async function jsonRequest<T>(
   method: "POST" | "PATCH" | "DELETE",
@@ -193,6 +233,13 @@ async function jsonRequest<T>(
   }
 
   if (!res.ok) {
+    // Phase-22 (Wave-3A) — prefer the structured GitHub-error detail when
+    // present so callers like RepoSyncButton get an actionable message
+    // instead of "[object Object]" / generic status text.
+    const githubMsg = _formatGitHubErrorDetail(payload);
+    if (githubMsg) {
+      throw new AiplatformkbApiError(res.status, payload, githubMsg);
+    }
     const detail =
       (payload && typeof payload === "object" && "detail" in payload
         ? String((payload as { detail: unknown }).detail)
@@ -205,8 +252,36 @@ async function jsonRequest<T>(
 // ── Modules ──────────────────────────────────────────────────────────────
 
 export function listAdminModules(platform?: string): Promise<AdminModule[]> {
-  const qs = platform ? `?platform=${encodeURIComponent(platform)}` : "";
+  // Phase-17 — when `platform` is provided, the backend returns
+  // distinct modules from api_listing scoped to that platform (LEFT
+  // JOIN module_descriptions for display metadata). Omit it for the
+  // global, platform-agnostic view (current ModulesTab behaviour).
+  const qs = buildQuery({ platform });
   return getJson<AdminModule[]>(`/admin/modules${qs}`);
+}
+
+// Phase-19 amendment — distinct platforms currently in api_listing.
+// Drives the Reclassify-page Platform dropdown; ground truth lives in
+// the rows themselves (no hardcoded enum to drift against).
+export function listAdminPlatforms(): Promise<string[]> {
+  return getJson<string[]>("/admin/platforms");
+}
+
+// Phase-19 amendment — distinct agents in api_listing. Optional
+// `platform` query param scopes the list to one platform (mirrors
+// listAdminModules's contract). The Reclassify-page Agent dropdown
+// re-fetches with the current platform so options track the row.
+//
+// Phase-21 (Wave-1C) — accepts an optional AbortSignal so the
+// Reclassify page can cancel a stale in-flight fetch when the curator
+// rapidly toggles platforms (or fires Use-suggestion mid-fetch);
+// only the LATEST resolution wins.
+export function listAdminAgents(
+  platform?: string,
+  signal?: AbortSignal,
+): Promise<string[]> {
+  const qs = platform ? `?platform=${encodeURIComponent(platform)}` : "";
+  return getJson<string[]>(`/admin/agents${qs}`, { signal });
 }
 
 export function reorderModules(
@@ -264,6 +339,27 @@ export function getOperationDetails(
   operationId: number
 ): Promise<OperationDetails> {
   return getJson<OperationDetails>(`/admin/operations/${operationId}/details`);
+}
+
+// Phase 19 — curator override. PATCH-style body — only the fields the
+// curator changed get sent. Backend flips the matching <col>_curated
+// lock flags so populate_kb won't re-classify them.
+export function setOperationClassification(
+  id: number,
+  body: SetClassificationPayload,
+): Promise<SetClassificationResponse> {
+  return jsonRequest<SetClassificationResponse>(
+    "POST",
+    `/admin/operations/${id}/classification`,
+    body,
+  );
+}
+
+// Phase 19 — real-time LLM advisor. Single Haiku 4.5 call (cached
+// in-memory for 60s). Returns `{fallback: true}` with HTTP 200 when
+// the gateway is unreachable or the API key is unset.
+export function getOperationSuggest(id: number): Promise<OperationSuggest> {
+  return getJson<OperationSuggest>(`/admin/operations/${id}/suggest`);
 }
 
 // ── Tools CRUD ───────────────────────────────────────────────────────────
@@ -341,20 +437,63 @@ import type {
   CancelResponse,
   ClassifyPreview,
   ClassifyResponse,
+  DiscoverJobAccepted,
+  DiscoverJobStatus,
   PopulatePreview,
   PopulateResponse,
   PrSyncDiscoverRequest,
-  PrSyncDiscoverResponse,
   PrSyncStatus,
 } from "@/types/pr-sync";
 
+// Phase-22 (Wave-3A) — wrap the shared jsonRequest so the failure surface
+// renders an op-specific fallback ("discover failed (500)") for legacy /
+// non-structured errors while preserving the GitHub-prefixed message that
+// _formatGitHubErrorDetail emits for the new structured 4xx/502 detail.
+// classify + populate get the same wrapper since their backend handlers
+// shell out to the same GitHub-fetch path and surface identical errors.
+async function _runWithOpLabel<T>(
+  op: "discover" | "classify" | "populate",
+  fn: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (err instanceof AiplatformkbApiError) {
+      // _formatGitHubErrorDetail-flavoured messages start with "GitHub ".
+      // Non-structured fallback messages get the op-specific label so the
+      // RepoSyncButton (and other call sites) read "discover failed (500)".
+      if (err.message.startsWith("GitHub ")) throw err;
+      throw new Error(`${op} failed (${err.status})`);
+    }
+    throw err;
+  }
+}
+
+// Phase-23 (Wave-3A) — discover is now async. The POST returns 202 with
+// DiscoverJobAccepted ({sync_run_id, status:"running", scope}); the caller
+// kicks the polling hook with the returned sync_run_id and waits for the
+// status endpoint to flip to "done"/"failed". The Phase-22
+// _runWithOpLabel wrapper still applies — 202 is success so the parser
+// doesn't fire, and 4xx (config error / scope-locked 409) still flows
+// through the same GitHub-error / op-label fallback.
 export function discoverPrs(
   payload: PrSyncDiscoverRequest
-): Promise<PrSyncDiscoverResponse> {
-  return jsonRequest<PrSyncDiscoverResponse>(
-    "POST",
-    `/admin/pr-sync/discover`,
-    payload
+): Promise<DiscoverJobAccepted> {
+  return _runWithOpLabel("discover", () =>
+    jsonRequest<DiscoverJobAccepted>(
+      "POST",
+      `/admin/pr-sync/discover`,
+      payload
+    )
+  );
+}
+
+// Phase-23 (Wave-3A) — poll the async discover job status.
+export function getDiscoverJobStatus(
+  syncRunId: number,
+): Promise<DiscoverJobStatus> {
+  return getJson<DiscoverJobStatus>(
+    `/admin/pr-sync/discover/${syncRunId}/status`,
   );
 }
 
@@ -365,9 +504,11 @@ export function previewClassify(prId: number): Promise<ClassifyPreview> {
 }
 
 export function triggerClassify(prId: number): Promise<ClassifyResponse> {
-  return jsonRequest<ClassifyResponse>(
-    "POST",
-    `/admin/pr-sync/prs/${prId}/classify`
+  return _runWithOpLabel("classify", () =>
+    jsonRequest<ClassifyResponse>(
+      "POST",
+      `/admin/pr-sync/prs/${prId}/classify`
+    )
   );
 }
 
@@ -378,9 +519,11 @@ export function previewPopulate(prId: number): Promise<PopulatePreview> {
 }
 
 export function triggerPopulate(prId: number): Promise<PopulateResponse> {
-  return jsonRequest<PopulateResponse>(
-    "POST",
-    `/admin/pr-sync/prs/${prId}/populate`
+  return _runWithOpLabel("populate", () =>
+    jsonRequest<PopulateResponse>(
+      "POST",
+      `/admin/pr-sync/prs/${prId}/populate`
+    )
   );
 }
 
@@ -404,6 +547,9 @@ export const aiplatformkbApi = {
   getFilterOptions,
   // Phase 12 admin.
   listAdminModules,
+  // Phase 19 amendment — dynamic platform/agent dropdowns.
+  listAdminPlatforms,
+  listAdminAgents,
   reorderModules,
   listAdminOperations,
   reorderOperations,
@@ -411,6 +557,9 @@ export const aiplatformkbApi = {
   getOperationCounts,
   // Phase 16 — operation details drawer.
   getOperationDetails,
+  // Phase 19 — curator override + AI suggestion.
+  setOperationClassification,
+  getOperationSuggest,
   listTools,
   createTool,
   patchTool,
@@ -423,6 +572,8 @@ export const aiplatformkbApi = {
   listToolsPublic,
   // Phase 13 sync.
   discoverPrs,
+  // Phase 23 — async discover job status polling.
+  getDiscoverJobStatus,
   previewClassify,
   triggerClassify,
   previewPopulate,
