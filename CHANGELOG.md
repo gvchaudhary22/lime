@@ -6,6 +6,75 @@ Format: [Semantic Versioning](https://semver.org/) — `v{milestone}.{phase}` al
 
 ---
 
+## [Unreleased] — feat/20-db-first-catalog (Phase 20)
+
+### Feature — AI suggest panel adds Platform row + ApisTab dynamic platform filter (Phase 20)
+
+**Branch**: `gvchaudhary22/lime` → `feat/20-db-first-catalog` (cut from `feat/19-curator-override`; rebases to main when Phase 19 amendment merges)
+**aiplatformkb cross-link**: `BFRS-2/aiplatformkb` → `feat/20-db-first-catalog`
+**Phase**: M1-P20 (consume the new platforms/agents tables on the Lime side)
+**Tests**: 37 vitest pass on api-tools surface (10 reclassify + 12 drawer + 15 tabs); was 33 pre-Phase-20.
+
+#### What shipped
+
+**Reclassify page AI panel adds Platform row** (`src/app/chat/api-tools/reclassify/[id]/page.tsx`):
+- Phase-19 amendment hid the persona row from the AI panel (no persona dropdown to fill); Phase 20 ADDS a Platform row because the LLM now picks a 4th enum.
+- "Use suggestion" handler extended: fills `platformValue` from the suggestion (when suggested platform is in the allowed `platforms` array); triggers a `listAdminAgents(suggestedPlatform)` re-fetch since the platform-scoped agent list changes; preserves the suggestion's agent across the re-fetch.
+- AI-recommended agent + platform now merged into the dropdown options at suggest-resolve so the curator can pick them directly without first clicking "Use suggestion".
+
+**ApisTab dynamic platform filter** (`src/app/chat/api-tools/components/ApisTab.tsx`):
+- Hardcoded `PLATFORMS` array DROPPED (the source of the `external_panel`-vs-`saral_platform` drift).
+- Replaced with mount-time `listAdminPlatforms()` fetch, alive-guarded against component unmount.
+- Filter now shows the live truth from the platforms table (14 values incl. `external_panel`, `srf_warehouse_platform`, `standard` which the prior hardcoded list missed).
+- When the fetch fails, a fallback `<option>` for the currently-selected platform keeps the page interactive.
+
+**Types** (`src/types/api-tools.ts`):
+- `OperationSuggest.platform: string | null` (mirrors backend Wave-1D)
+- `OperationSuggestCurrent.platform: string | null` (the row's current platform value in the suggest payload's `current` dict)
+
+#### Auth + posture
+
+All `/admin/*` calls continue to flow through the Lime server-side proxy (`src/app/api/aiplatformkb/admin/[...path]/route.ts`). The Phase-19-amendment auth-less posture (proxy forwards without an Authorization header when `AIPLATFORMKB_ADMIN_TOKEN` env is unset) is preserved.
+
+#### Review residuals (TS axis)
+
+`/tyrion:review 20` returned SHIP-CLEAR. 0 CRITICAL / 0 HIGH / 1 MED / 2 LOW.
+
+- **TS20-M1** Use-suggestion `listAdminAgents` re-fetch lacks alive-guard → tracked Phase-21 (mirrors a pre-existing Phase-19 platform-onChange handler with the same pattern; sweep both with an AbortController).
+- 2 LOWs WAIVED inline (sort spread mutation contained; `OperationSuggestCurrent.platform` schema parity).
+
+Full disposition in `BFRS-2/aiplatformkb` `docs/plans/PHASE-20-REVIEW.md`.
+
+#### Out of scope (deferred Phase 21)
+
+- UI for managing platforms/agents tables (CRUD frontend) — backend endpoints exist; UI is Phase 21
+- Bulk-multi-select reclassify
+- Audit history for catalog changes
+
+---
+
+## [Unreleased] — feat/19-curator-override AMENDMENT (Phase 19 amendment)
+
+### Amendment — Persona→Platform dropdown swap + dynamic agent dropdown + 🔒 platform lock badge
+
+**Branch**: `gvchaudhary22/lime` → `feat/19-curator-override` @ `97605c9` (amendment HEAD)
+**aiplatformkb cross-link**: `BFRS-2/aiplatformkb` → `feat/19-curator-override` @ `b1a1f5e`
+**Phase**: M1-P19-amend — bundled into open PR #9 alongside the original Phase 19 commits
+
+#### What the amendment added on top of original Phase 19
+
+- **Reclassify page**: Persona dropdown REMOVED; **Platform dropdown** ADDED (sourced from `listAdminPlatforms()`); **Agent input → dropdown** sourced from `listAdminAgents(platform)` — re-fetches when platform changes and resets if the previous agent isn't in the new platform's list.
+- **🔒 4th lock badge** in the See Details drawer for `platform_curated`.
+- **Lime admin proxy** drops the 503 fail-closed when `AIPLATFORMKB_ADMIN_TOKEN` env is unset — auth-less by design (Phase 6 §2.5 posture).
+- **Save body diff logic** tracks `platformChanged` instead of `personaChanged`. Use-suggestion path doesn't touch platform (suggest endpoint didn't return platform yet — Phase 20 fixes that).
+- **Use-suggestion gracefully extends `agents` state** when the AI's suggested agent isn't already in the dropdown.
+
+#### Tests: 33 vitest pass on api-tools surface
+
+#### Review residuals (TS axis): SHIP-CLEAR; 1 MED tracked Phase-21 (alive-guard sweep), 2 LOWs WAIVED.
+
+---
+
 ## [Unreleased] — feat/19-curator-override (Phase 19)
 
 ### Feature — Reclassify page + AI suggestion panel + 🔒 manual-override badges (Phase 19)

@@ -8,6 +8,7 @@ import {
   getOperationCounts,
   listAdminModules,
   listAdminOperations,
+  listAdminPlatforms,
   reorderOperations,
   setOperationEligibility,
 } from "@/lib/aiplatformkb-api";
@@ -15,11 +16,6 @@ import { visibilityTooltip } from "@/lib/api-tools-copy";
 import type { AdminModule, AdminOperation, OperationCountsResponse } from "@/types/api-tools";
 import SortableList from "@/components/primitives/SortableList";
 import OperationDetailsDrawer from "@/components/api-tools/OperationDetailsDrawer";
-
-const PLATFORMS = [
-  "seller_panel", "icrm_platform", "app_platform", "oneapp", "ondc",
-  "zop_platform", "hyperlocal", "external_panel", "srx", "internal", "cargo",
-];
 
 /**
  * APIs tab — Wave 3-LIME-D.
@@ -34,6 +30,11 @@ function _isDeprecated(op: AdminOperation): boolean {
 export default function ApisTab() {
   const router = useRouter();
   const [modules, setModules] = useState<AdminModule[] | null>(null);
+  // Phase-20 — platforms sourced dynamically from /admin/platforms (was a
+  // hardcoded 11-value array that drifted from the DB). Empty during
+  // initial load; the dropdown still renders the currently-selected
+  // platform via a fallback <option> below so the page stays functional.
+  const [platforms, setPlatforms] = useState<string[]>([]);
   const [platform, setPlatform] = useState("seller_panel");
   const [moduleName, setModuleName] = useState("");
   const [serverOps, setServerOps] = useState<AdminOperation[] | null>(null);
@@ -62,6 +63,18 @@ export default function ApisTab() {
         setModuleName((cur) => cur || rows[0]?.module_name || "");
       })
       .catch((err) => { if (alive) setError(_msg(err)); });
+    return () => { alive = false; };
+  }, []);
+
+  // Phase-20 — platforms list sourced from /admin/platforms (DB-backed
+  // ground truth). Empty array on fetch failure is acceptable — the
+  // current platform's <option> is rendered separately below so the
+  // dropdown always shows the selected value.
+  useEffect(() => {
+    let alive = true;
+    listAdminPlatforms()
+      .then((rows) => { if (alive) setPlatforms(rows); })
+      .catch(() => { /* graceful degradation — empty dropdown is fine */ });
     return () => { alive = false; };
   }, []);
 
@@ -209,9 +222,16 @@ export default function ApisTab() {
           <select
             value={platform}
             onChange={(e) => setPlatform(e.target.value)}
+            data-testid="apis-tab-platform-select"
             className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-sm text-zinc-100"
           >
-            {PLATFORMS.map((p) => <option key={p} value={p}>{p}</option>)}
+            {/* Render the currently-selected platform first if the
+                fetched list hasn't loaded yet (or doesn't include it),
+                so the dropdown always reflects the active value. */}
+            {!platforms.includes(platform) && (
+              <option value={platform}>{platform}</option>
+            )}
+            {platforms.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
         </label>
         <label className="text-xs text-zinc-400">
