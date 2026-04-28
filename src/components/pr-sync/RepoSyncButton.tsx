@@ -52,7 +52,27 @@ export default function RepoSyncButton({ org, repo, onDiscovered }: Props) {
         )}
         Sync new PRs
       </button>
-      {error && <span className="text-xs text-rose-400">{error}</span>}
+      {error &&
+        (error.startsWith("GitHub ")
+          ? (() => {
+              // Phase-22 (Wave-3B) — when discoverPrs / triggerClassify /
+              // triggerPopulate surface a structured GitHub error, the
+              // message arrives as `GitHub <status>: <msg> — <hint>`.
+              // Split on the " — " separator so the hint wraps onto a
+              // softer second row; pure presentation, no logic change.
+              const sepIdx = error.indexOf(" — ");
+              const head = sepIdx >= 0 ? error.slice(0, sepIdx) : error;
+              const hint = sepIdx >= 0 ? error.slice(sepIdx + 3) : "";
+              return (
+                <div className="flex max-w-md flex-col gap-0.5 text-xs">
+                  <span className="text-rose-400">{head}</span>
+                  {hint && <span className="text-slate-400">{hint}</span>}
+                </div>
+              );
+            })()
+          : (
+              <span className="text-xs text-rose-400">{error}</span>
+            ))}
     </div>
   );
 }
