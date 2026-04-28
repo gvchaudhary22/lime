@@ -21,12 +21,16 @@ export default function PrHeaderCard({ pr }: Props) {
   // doesn't always carry html_url through). Construct the canonical
   // GitHub PR URL FE-side from {org, repo, pr_number} so the link
   // always renders when the sync_runs join surfaces both fields.
-  // Anchor only renders when both pieces are present — the alternative
-  // is a broken https://github.com//<repo>/pull/<n> URL.
+  //
+  // Phase-25 review TS-M1 — fall back to pr.pr_url for legacy rows
+  // discovered before sr.org / sr.repo_name were exposed on the
+  // header response (pre-Phase-25 inserts have pr_url populated by
+  // the CLI ingest path; HTTP-path inserts have it NULL). Without the
+  // fallback, the link would silently disappear for any legacy row.
   const githubUrl =
     pr.org && pr.repo
       ? `https://github.com/${pr.org}/${pr.repo}/pull/${pr.pr_number}`
-      : null;
+      : pr.pr_url || null;
 
   return (
     <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-5">
