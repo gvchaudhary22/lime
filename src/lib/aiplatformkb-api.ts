@@ -189,12 +189,12 @@ import type {
 // layout). Non-structured detail (existing FastAPI string detail) falls
 // back to the legacy stringification so unrelated admin errors keep
 // their current message.
-type GitHubErrorDetail = {
-  kind?: string;
-  github_status?: number;
-  github_message?: string;
-  hint?: string;
-};
+//
+// Phase-23 (Wave-3A) — the GitHubErrorDetail shape moved into
+// `@/types/pr-sync` so DiscoverJobStatus.error_detail can refer to it.
+// The local alias is kept here for backward compatibility with the
+// existing _formatGitHubErrorDetail call site.
+import type { GitHubErrorDetail } from "@/types/pr-sync";
 
 function _formatGitHubErrorDetail(payload: unknown): string | null {
   if (!payload || typeof payload !== "object") return null;
@@ -437,10 +437,11 @@ import type {
   CancelResponse,
   ClassifyPreview,
   ClassifyResponse,
+  DiscoverJobAccepted,
+  DiscoverJobStatus,
   PopulatePreview,
   PopulateResponse,
   PrSyncDiscoverRequest,
-  PrSyncDiscoverResponse,
   PrSyncStatus,
 } from "@/types/pr-sync";
 
@@ -468,15 +469,31 @@ async function _runWithOpLabel<T>(
   }
 }
 
+// Phase-23 (Wave-3A) — discover is now async. The POST returns 202 with
+// DiscoverJobAccepted ({sync_run_id, status:"running", scope}); the caller
+// kicks the polling hook with the returned sync_run_id and waits for the
+// status endpoint to flip to "done"/"failed". The Phase-22
+// _runWithOpLabel wrapper still applies — 202 is success so the parser
+// doesn't fire, and 4xx (config error / scope-locked 409) still flows
+// through the same GitHub-error / op-label fallback.
 export function discoverPrs(
   payload: PrSyncDiscoverRequest
-): Promise<PrSyncDiscoverResponse> {
+): Promise<DiscoverJobAccepted> {
   return _runWithOpLabel("discover", () =>
-    jsonRequest<PrSyncDiscoverResponse>(
+    jsonRequest<DiscoverJobAccepted>(
       "POST",
       `/admin/pr-sync/discover`,
       payload
     )
+  );
+}
+
+// Phase-23 (Wave-3A) — poll the async discover job status.
+export function getDiscoverJobStatus(
+  syncRunId: number,
+): Promise<DiscoverJobStatus> {
+  return getJson<DiscoverJobStatus>(
+    `/admin/pr-sync/discover/${syncRunId}/status`,
   );
 }
 
@@ -555,6 +572,8 @@ export const aiplatformkbApi = {
   listToolsPublic,
   // Phase 13 sync.
   discoverPrs,
+  // Phase 23 — async discover job status polling.
+  getDiscoverJobStatus,
   previewClassify,
   triggerClassify,
   previewPopulate,

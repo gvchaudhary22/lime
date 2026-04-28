@@ -14,13 +14,55 @@ export interface PrSyncDiscoverRequest {
   limit_prs?: number;
 }
 
-export interface PrSyncDiscoverResponse {
-  sync_run_id: number | null;
-  discovered_count: number;
-  discovered_pr_ids: number[];
-  total_changed_files: number;
-  est_total_classify_cost_usd: number;
+// Phase-22 (Wave-3A) — structured GitHub-error detail surfaced by the
+// backend admin handlers when GitHub itself rejects the discover/classify/
+// populate fetch. The client formats this as
+// `GitHub <status>: <msg> — <hint>` for the 2-row error block.
+//
+// Phase-23 (Wave-3A) — promoted from a private alias inside
+// aiplatformkb-api.ts so the new async DiscoverJobStatus.error_detail
+// can refer to the same shape.
+export interface GitHubErrorDetail {
+  kind?: string;
+  github_status?: number;
+  github_message?: string;
+  github_errors?: unknown[];
+  url?: string;
+  hint?: string;
 }
+
+// Phase-23 (Wave-3A) — async-job contract.
+// `POST /admin/pr-sync/discover` now returns 202 with this shape; the
+// frontend then polls /admin/pr-sync/discover/{sync_run_id}/status until
+// status is "done" or "failed".
+export interface DiscoverJobAccepted {
+  sync_run_id: number;
+  status: "running";
+  scope: string;
+}
+
+// Phase-23 (Wave-3A) — full row shape returned by the status endpoint.
+// Mirrors aiplatformkb pr_sync_runs row + Phase-22 error_detail.
+export interface DiscoverJobStatus {
+  sync_run_id: number;
+  org: string;
+  repo: string;
+  status: "running" | "done" | "failed";
+  started_at: string; // ISO 8601
+  finished_at: string | null;
+  error_message: string | null;
+  error_detail: GitHubErrorDetail | null;
+  discovered_count: number | null;
+  discovered_pr_ids: number[] | null;
+}
+
+/**
+ * @deprecated Phase-23 sync→async cut — `discoverPrs()` now returns
+ * {@link DiscoverJobAccepted}. The synchronous PrSyncDiscoverResponse
+ * shape is gone. Kept as a transitional alias for one PR cycle so any
+ * stale internal import compiles; remove on the next pass.
+ */
+export type PrSyncDiscoverResponse = DiscoverJobAccepted;
 
 export interface ClassifyPreview {
   pr_id: number;
