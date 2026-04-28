@@ -6,6 +6,82 @@ Format: [Semantic Versioning](https://semver.org/) — `v{milestone}.{phase}` al
 
 ---
 
+## [Unreleased] — feat/19-curator-override (Phase 19)
+
+### Feature — Reclassify page + AI suggestion panel + 🔒 manual-override badges (Phase 19)
+
+**Branch**: `gvchaudhary22/lime` → `feat/19-curator-override`
+**aiplatformkb cross-link**: `BFRS-2/aiplatformkb` → `feat/19-curator-override`
+**Phase**: M1-P19 — per-row Reclassify button on APIs tab + dedicated Reclassify page with real-time AI suggest + manual-override badges in the See Details drawer
+**Tests**: 32 vitest pass on api-tools surface (8 new reclassify-page + 11 drawer including +1 lock-badge + 13 tabs including +1 Reclassify-button)
+
+#### What shipped
+
+**Per-row Reclassify button** (`src/app/chat/api-tools/components/ApisTab.tsx`):
+
+```
+[ ⋮⋮ ] POST  /api/v1/shipments/ndr/{id}/action  …  [ Details ] [ Reclassify ▶ ] [ visible ]
+```
+
+Wand2 icon, mirrors the Details button's drag-defense triad (`stopPropagation` + `preventDefault` + `onPointerDown`). Navigates via `next/navigation` `router.push` to the dedicated Reclassify page.
+
+**Reclassify page** (`src/app/chat/api-tools/reclassify/[id]/page.tsx`):
+
+```
+┌─ AI suggestion ──────────────────────────────────────────┐
+│  Module:  NDR                                            │
+│  Agent:   ndr_resolver                                   │
+│  Persona: seller                                         │
+│  Reasoning: Path /api/v1/shipments/ndr/… and controller  │
+│  ShipmentController@ndrAction indicate an NDR action.    │
+│  [ Use suggestion ]                                      │
+└──────────────────────────────────────────────────────────┘
+
+Module:    [ Order             ▼ ]    🔒 manual override
+Agent:     [ shipment_ops              ]
+Persona:   [ seller            ▼ ]
+
+[ Cancel ]              [ Save → ]
+```
+
+- Module dropdown is platform-scoped via Phase-17 `listAdminModules(platform)`
+- Agent is free-text `<input maxLength={200}>`
+- Persona is the fixed enum `{seller, icrm_agent, external, internal, partner}`
+- AI panel renders with a spinner → content-or-fallback. **"Use suggestion"** button fills all 3 dropdowns from the LLM's picks. Hidden when `fallback === true`.
+- 🔒 badge appears next to a field LABEL when the loaded `OperationDetails.<col>_curated === true`
+- Save sends a **PATCH-style body** containing only the fields that differ from the current row — only those fields' lock flags flip to 1
+- On Save success → `router.replace("/chat/api-tools?tab=apis&platform=<p>&module=<newOrCurrent>")`
+- On Save failure → red banner with backend `detail` text
+- alive-guard pattern (Phase 16 contract) preserved across the page's 3 parallel fetches (`getOperationDetails` + `getOperationSuggest` + `listAdminModules`)
+
+**Drawer 🔒 manual-override badges** (`src/components/api-tools/OperationDetailsDrawer.tsx`):
+
+`KV` extended with optional `badge?: ReactNode` prop. Lock badge renders next to module / agent / persona labels in the drawer's Classification section when the corresponding `*_curated === true`. Tooltip explains: "manual override — kb_populate won't re-classify this field". Lock icon from lucide-react.
+
+**Client + types** (`src/lib/aiplatformkb-api.ts`, `src/types/api-tools.ts`):
+- `setOperationClassification(id, body)` — PATCH-style payload `{module?, agent?, persona?}`
+- `getOperationSuggest(id)` — returns `{module, agent, persona, current, reasoning, fallback}`
+- 3 new fields on `OperationDetails`: `module_curated`, `agent_curated`, `persona_curated`
+
+All `/admin/*` calls continue to flow through the Phase-13 Wave-1C server-side proxy.
+
+#### Review residuals
+
+`/tyrion:review 19` (TypeScript axis): 0 CRITICAL / 0 HIGH / 3 MEDIUM / 3 LOW.
+
+3 MEDIUMs tracked Phase-20:
+- TS19-M1: `OperationSuggestCurrent.module: string` over-tight vs backend `current: dict`
+- TS19-M2: `cancel-button` testid on header back-link, not bottom Cancel button (both call `router.back()`)
+- TS19-M3: `usedSuggestion` branching → WAIVED (double-gated by empty-string check + backend min_length=1)
+
+Full disposition table in `BFRS-2/aiplatformkb` `docs/plans/PHASE-19-REVIEW.md`.
+
+#### Out of scope (deferred)
+
+Bulk multi-select reclassify · Reclassify history view · Undo / restore-LLM-default button · Cross-platform move · Browser-native persona enum dropdown styling.
+
+---
+
 ## [Unreleased] — feat/16-api-tools-details (Phase 16)
 
 ### Feature — API Tools "See Details" drawer + visibility text + `api_usable` filter (Phase 16)

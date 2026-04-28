@@ -6,6 +6,15 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, fireEvent, act, cleanup } from "@testing-library/react";
 import React from "react";
 
+// Phase 19 — ApisTab now uses useRouter() to navigate to /chat/api-tools/
+// reclassify/[id]. Stub the App Router context so the tests don't trip the
+// "invariant expected app router to be mounted" runtime check.
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), back: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+  useParams: () => ({}),
+}));
+
 const mockListAdminModules = vi.fn();
 const mockReorderModules = vi.fn();
 const mockListAdminOperations = vi.fn();
@@ -184,6 +193,35 @@ describe("ApisTab", () => {
       expect(screen.getByText("98")).toBeInTheDocument();    // module active
       expect(screen.getByText("21 dep")).toBeInTheDocument(); // module deprecated
     });
+  });
+
+  // Phase 19 — Reclassify button surfaces between Details and visibility
+  // toggle. Asserts presence + testid; the navigation behaviour itself is
+  // covered by the dedicated reclassify-page test suite.
+  it("renders a Reclassify button per row with the correct testid", async () => {
+    mockListAdminModules.mockResolvedValueOnce([
+      { module_name: "Order", display_name: "Orders", display_order: 20 },
+    ]);
+    mockListAdminOperations.mockResolvedValueOnce([
+      {
+        id: 1744,
+        http_method: "POST",
+        path: "/api/v1/auth/logout",
+        display_order: null,
+        tool_name: "auth_logout",
+        hit_count_7d: 64378,
+        ai_platform_eligible_api: false,
+        read_write_type: "WRITE",
+        risk_level: "medium",
+        deprecated: false,
+        elk_deprecated_api: false,
+      },
+    ]);
+    render(<ApisTab />);
+    await waitFor(() => screen.getByText("/api/v1/auth/logout"));
+    const reclassifyBtn = screen.getByTestId("reclassify-btn-1744");
+    expect(reclassifyBtn).toBeInTheDocument();
+    expect(reclassifyBtn).toHaveTextContent(/Reclassify/i);
   });
 
   it("eligibility toggle flips the per-row state and posts PATCH", async () => {

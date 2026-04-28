@@ -153,6 +153,7 @@ import type {
   ListOperationsParams,
   OperationCountsResponse,
   OperationDetails,
+  OperationSuggest,
   PatchToolPayload,
   PublicToolsResponse,
   RemoveApiFromToolResponse,
@@ -162,6 +163,8 @@ import type {
   ReorderOperationsResponse,
   ReorderToolApisPayload,
   ReorderToolApisResponse,
+  SetClassificationPayload,
+  SetClassificationResponse,
   SetEligibilityPayload,
   SetEligibilityResponse,
   ToolMember,
@@ -204,8 +207,13 @@ async function jsonRequest<T>(
 
 // ── Modules ──────────────────────────────────────────────────────────────
 
-export function listAdminModules(): Promise<AdminModule[]> {
-  return getJson<AdminModule[]>(`/admin/modules`);
+export function listAdminModules(platform?: string): Promise<AdminModule[]> {
+  // Phase-17 — when `platform` is provided, the backend returns
+  // distinct modules from api_listing scoped to that platform (LEFT
+  // JOIN module_descriptions for display metadata). Omit it for the
+  // global, platform-agnostic view (current ModulesTab behaviour).
+  const qs = buildQuery({ platform });
+  return getJson<AdminModule[]>(`/admin/modules${qs}`);
 }
 
 export function reorderModules(
@@ -263,6 +271,27 @@ export function getOperationDetails(
   operationId: number
 ): Promise<OperationDetails> {
   return getJson<OperationDetails>(`/admin/operations/${operationId}/details`);
+}
+
+// Phase 19 — curator override. PATCH-style body — only the fields the
+// curator changed get sent. Backend flips the matching <col>_curated
+// lock flags so populate_kb won't re-classify them.
+export function setOperationClassification(
+  id: number,
+  body: SetClassificationPayload,
+): Promise<SetClassificationResponse> {
+  return jsonRequest<SetClassificationResponse>(
+    "POST",
+    `/admin/operations/${id}/classification`,
+    body,
+  );
+}
+
+// Phase 19 — real-time LLM advisor. Single Haiku 4.5 call (cached
+// in-memory for 60s). Returns `{fallback: true}` with HTTP 200 when
+// the gateway is unreachable or the API key is unset.
+export function getOperationSuggest(id: number): Promise<OperationSuggest> {
+  return getJson<OperationSuggest>(`/admin/operations/${id}/suggest`);
 }
 
 // ── Tools CRUD ───────────────────────────────────────────────────────────
@@ -410,6 +439,9 @@ export const aiplatformkbApi = {
   getOperationCounts,
   // Phase 16 — operation details drawer.
   getOperationDetails,
+  // Phase 19 — curator override + AI suggestion.
+  setOperationClassification,
+  getOperationSuggest,
   listTools,
   createTool,
   patchTool,

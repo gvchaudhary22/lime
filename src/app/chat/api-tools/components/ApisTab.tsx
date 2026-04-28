@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Eye, EyeOff, GripVertical, Info, Loader2, Save } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, Eye, EyeOff, GripVertical, Info, Loader2, Save, Wand2 } from "lucide-react";
 import {
   AiplatformkbApiError,
   getOperationCounts,
@@ -31,6 +32,7 @@ function _isDeprecated(op: AdminOperation): boolean {
 }
 
 export default function ApisTab() {
+  const router = useRouter();
   const [modules, setModules] = useState<AdminModule[] | null>(null);
   const [platform, setPlatform] = useState("seller_panel");
   const [moduleName, setModuleName] = useState("");
@@ -364,6 +366,23 @@ export default function ApisTab() {
                     >
                       <Info className="h-3 w-3" />
                       Details
+                    </button>
+                    {/* Phase 19 — Reclassify button. Same stopPropagation +
+                        onPointerDown defenses as Details so the SortableList
+                        drag pointer-handler doesn't grab the click. */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        router.push(`/chat/api-tools/reclassify/${op.id}`);
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      title={`Reclassify module / agent / persona for #${op.id}`}
+                      data-testid={`reclassify-btn-${op.id}`}
+                      className="flex items-center gap-1 rounded bg-zinc-800 px-2 py-1 text-xs text-zinc-300 transition-colors hover:bg-zinc-700"
+                    >
+                      <Wand2 className="h-3 w-3" />
+                      Reclassify
                     </button>
                     <button
                       onClick={(e) => {

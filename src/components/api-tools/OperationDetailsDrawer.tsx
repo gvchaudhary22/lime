@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ComponentPropsWithoutRef } from "react";
-import { AlertTriangle, Eye, EyeOff, Loader2, X } from "lucide-react";
+import { AlertTriangle, Eye, EyeOff, Loader2, Lock, X } from "lucide-react";
 
 import {
   AiplatformkbApiError,
@@ -188,10 +188,34 @@ export default function OperationDetailsDrawer({ operationId, onClose }: Props) 
 
               <Section label="Classification">
                 <KV label="platform" value={state.data.platform} />
-                <KV label="module" value={state.data.module} />
+                <KV
+                  label="module"
+                  value={state.data.module}
+                  badge={
+                    state.data.module_curated ? (
+                      <CuratedBadge testid="drawer-module-lock-badge" />
+                    ) : null
+                  }
+                />
                 <KV label="sub_module" value={state.data.sub_module} />
-                <KV label="agent" value={state.data.agent} />
-                <KV label="persona" value={state.data.persona} />
+                <KV
+                  label="agent"
+                  value={state.data.agent}
+                  badge={
+                    state.data.agent_curated ? (
+                      <CuratedBadge testid="drawer-agent-lock-badge" />
+                    ) : null
+                  }
+                />
+                <KV
+                  label="persona"
+                  value={state.data.persona}
+                  badge={
+                    state.data.persona_curated ? (
+                      <CuratedBadge testid="drawer-persona-lock-badge" />
+                    ) : null
+                  }
+                />
                 <KV label="intent" value={state.data.intent} />
                 <KV label="seller_menu_key" value={state.data.seller_menu_key} />
                 <KV label="ui_section" value={state.data.ui_section} />
@@ -285,20 +309,40 @@ function KV({
   label,
   value,
   mono,
+  badge,
 }: {
   label: string;
   value: string | null;
   mono?: boolean;
+  badge?: React.ReactNode;
 }) {
   return (
     <div className="flex gap-3 py-0.5 text-xs">
-      <span className="min-w-[140px] shrink-0 text-slate-500">{label}</span>
+      <span className="flex min-w-[140px] shrink-0 items-center gap-1 text-slate-500">
+        {label}
+        {badge}
+      </span>
       <span
         className={`flex-1 break-words text-slate-200 ${mono ? "font-mono text-[11px]" : ""}`}
       >
         {value && value !== "" ? value : "—"}
       </span>
     </div>
+  );
+}
+
+// Phase 19 — manual-override lock badge for the Classification section.
+// Surfaced when the row's <col>_curated boolean is true, matching the
+// Reclassify page's amber-warning idiom.
+function CuratedBadge({ testid }: { testid: string }) {
+  return (
+    <span
+      data-testid={testid}
+      title="manual override — kb_populate won't re-classify this field"
+      className="inline-flex items-center text-amber-400"
+    >
+      <Lock className="h-3 w-3" />
+    </span>
   );
 }
 
