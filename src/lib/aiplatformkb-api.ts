@@ -216,6 +216,22 @@ export function listAdminModules(platform?: string): Promise<AdminModule[]> {
   return getJson<AdminModule[]>(`/admin/modules${qs}`);
 }
 
+// Phase-19 amendment — distinct platforms currently in api_listing.
+// Drives the Reclassify-page Platform dropdown; ground truth lives in
+// the rows themselves (no hardcoded enum to drift against).
+export function listAdminPlatforms(): Promise<string[]> {
+  return getJson<string[]>("/admin/platforms");
+}
+
+// Phase-19 amendment — distinct agents in api_listing. Optional
+// `platform` query param scopes the list to one platform (mirrors
+// listAdminModules's contract). The Reclassify-page Agent dropdown
+// re-fetches with the current platform so options track the row.
+export function listAdminAgents(platform?: string): Promise<string[]> {
+  const qs = platform ? `?platform=${encodeURIComponent(platform)}` : "";
+  return getJson<string[]>(`/admin/agents${qs}`);
+}
+
 export function reorderModules(
   payload: ReorderModulesPayload
 ): Promise<ReorderModulesResponse> {
@@ -432,6 +448,9 @@ export const aiplatformkbApi = {
   getFilterOptions,
   // Phase 12 admin.
   listAdminModules,
+  // Phase 19 amendment — dynamic platform/agent dropdowns.
+  listAdminPlatforms,
+  listAdminAgents,
   reorderModules,
   listAdminOperations,
   reorderOperations,

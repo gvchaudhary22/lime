@@ -1,20 +1,17 @@
-// Phase 13 Wave 1C — server-side admin proxy.
+// Server-side admin proxy.
 //
 // All Lime calls to aiplatformkb's /admin/* surface flow through this Next.js
-// Route Handler. The handler reads the bearer token from server env
-// (AIPLATFORMKB_ADMIN_TOKEN — NOT a NEXT_PUBLIC_* var) and injects it into
-// the upstream request as `Authorization: Bearer <token>`. The token never
-// reaches the browser, so a stolen Lime cookie cannot be used to call
-// aiplatformkb directly.
+// Route Handler. Lime → aiplatformkb is auth-less by design (Phase 6 §2.5
+// posture, reaffirmed by the user across multiple turns); the deployment
+// firewall around the aiplatformkb FastAPI is the gate. If
+// AIPLATFORMKB_ADMIN_TOKEN is set in server env, the proxy attaches it as
+// `Authorization: Bearer <token>` so deployments that opt into the
+// upstream bearer-token gate still work without code changes.
 //
 // Security invariants:
 //   • The Authorization header from the incoming browser request is
 //     unconditionally discarded. We never honor a client-supplied token.
-//   • The token is never logged.
-//   • If AIPLATFORMKB_ADMIN_TOKEN is empty, every request gets 503 with a
-//     generic message — no path information leaked, no upstream call made.
-//
-// Mirrors the OWASP recipe in BFRS-2/aiplatformkb:PHASE-12-PLAN.md §9.
+//   • The token (when configured) is never logged.
 
 import { NextRequest, NextResponse } from "next/server";
 
@@ -43,13 +40,6 @@ const STRIPPED_RESPONSE_HEADERS = new Set([
 
 async function proxy(req: NextRequest, params: { path: string[] }): Promise<Response> {
   const token = process.env.AIPLATFORMKB_ADMIN_TOKEN || "";
-  if (!token) {
-    // Fail closed. Generic message — never echo path or env-var name.
-    return NextResponse.json(
-      { detail: "admin proxy not configured" },
-      { status: 503 },
-    );
-  }
 
   const subpath = (params.path || []).join("/");
   const search = req.nextUrl.search; // includes leading "?" or ""
@@ -60,7 +50,9 @@ async function proxy(req: NextRequest, params: { path: string[] }): Promise<Resp
     if (STRIPPED_REQUEST_HEADERS.has(key.toLowerCase())) return;
     headers.set(key, value);
   });
-  headers.set("Authorization", `Bearer ${token}`);
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
 
   const init: RequestInit = {
     method: req.method,

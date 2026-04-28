@@ -187,7 +187,15 @@ export default function OperationDetailsDrawer({ operationId, onClose }: Props) 
               </Section>
 
               <Section label="Classification">
-                <KV label="platform" value={state.data.platform} />
+                <KV
+                  label="platform"
+                  value={state.data.platform}
+                  badge={
+                    state.data.platform_curated ? (
+                      <CuratedBadge testid="drawer-platform-lock-badge" />
+                    ) : null
+                  }
+                />
                 <KV
                   label="module"
                   value={state.data.module}

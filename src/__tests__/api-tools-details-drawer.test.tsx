@@ -84,6 +84,7 @@ const baseDetails: OperationDetails = {
   module_curated: false,
   agent_curated: false,
   persona_curated: false,
+  platform_curated: false,
   display_order: 30,
   reject_description: null,
   elk: {
@@ -300,5 +301,18 @@ describe("OperationDetailsDrawer", () => {
     expect(screen.getByTestId("drawer-module-lock-badge")).toBeInTheDocument();
     expect(screen.queryByTestId("drawer-agent-lock-badge")).toBeNull();
     expect(screen.getByTestId("drawer-persona-lock-badge")).toBeInTheDocument();
+  });
+
+  // Phase 19 amendment — platform also surfaces a lock badge when
+  // platform_curated is true (curator pinned the platform via the
+  // Reclassify page; populate_kb won't clobber it on future syncs).
+  it("renders platform lock badge when platform_curated is true", async () => {
+    mockGetOperationDetails.mockResolvedValue({
+      ...baseDetails,
+      platform_curated: true,
+    });
+    render(<OperationDetailsDrawer operationId={281} onClose={() => {}} />);
+    await screen.findByTestId("drawer-description");
+    expect(screen.getByTestId("drawer-platform-lock-badge")).toBeInTheDocument();
   });
 });

@@ -194,6 +194,8 @@ export interface OperationDetails {
   module_curated: boolean;
   agent_curated: boolean;
   persona_curated: boolean;
+  // Phase-19 amendment — platform is also curator-overridable now.
+  platform_curated: boolean;
   display_order: number | null;
   reject_description: string | null;
   // ELK summary (from api_listing denormalized columns)
@@ -209,6 +211,10 @@ export interface SetClassificationPayload {
   module?: string;
   agent?: string;
   persona?: string;
+  // Phase-19 amendment — when set, backend flips platform_curated = 1
+  // and the populate_kb UPSERT will preserve this value going forward.
+  // Validated server-side against /^[a-z][a-z0-9_]{0,63}$/.
+  platform?: string;
 }
 
 export interface SetClassificationResponse {
@@ -220,6 +226,9 @@ export interface SetClassificationResponse {
   agent_curated: boolean;
   persona_curated: boolean;
   platform: string;
+  // Phase-19 amendment — surfaced in the response so the UI can refresh
+  // the lock badge after Save.
+  platform_curated: boolean;
 }
 
 export interface OperationSuggestCurrent {

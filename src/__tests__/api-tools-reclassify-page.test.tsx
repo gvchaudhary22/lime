@@ -30,6 +30,8 @@ vi.mock("@/components/layout/Sidebar", () => ({
 const mockGetOperationDetails = vi.fn();
 const mockGetOperationSuggest = vi.fn();
 const mockListAdminModules = vi.fn();
+const mockListAdminPlatforms = vi.fn();
+const mockListAdminAgents = vi.fn();
 const mockSetOperationClassification = vi.fn();
 
 vi.mock("@/lib/aiplatformkb-api", async () => {
@@ -41,6 +43,8 @@ vi.mock("@/lib/aiplatformkb-api", async () => {
     getOperationDetails: (...a: unknown[]) => mockGetOperationDetails(...a),
     getOperationSuggest: (...a: unknown[]) => mockGetOperationSuggest(...a),
     listAdminModules: (...a: unknown[]) => mockListAdminModules(...a),
+    listAdminPlatforms: (...a: unknown[]) => mockListAdminPlatforms(...a),
+    listAdminAgents: (...a: unknown[]) => mockListAdminAgents(...a),
     setOperationClassification: (...a: unknown[]) =>
       mockSetOperationClassification(...a),
   };
@@ -83,6 +87,7 @@ const baseDetails: OperationDetails = {
   module_curated: false,
   agent_curated: false,
   persona_curated: false,
+  platform_curated: false,
   display_order: 30,
   reject_description: null,
   elk: {
@@ -134,6 +139,12 @@ beforeEach(() => {
   vi.clearAllMocks();
   mockParams = { id: "281" };
   mockListAdminModules.mockResolvedValue(baseModules);
+  mockListAdminPlatforms.mockResolvedValue([
+    "icrm_platform",
+    "seller_panel",
+    "srx",
+  ]);
+  mockListAdminAgents.mockResolvedValue(["ndr_resolver", "shipment_ops"]);
 });
 
 afterEach(() => {
@@ -142,7 +153,7 @@ afterEach(() => {
 
 describe("ReclassifyPage", () => {
   // ── Case 1: loading → 3 dropdowns + AI panel after fetch ─────────────
-  it("renders loading state, then 3 dropdowns + AI panel after fetches resolve", async () => {
+  it("renders loading state, then platform + module + agent dropdowns + AI panel after fetches resolve", async () => {
     let resolveDetails!: (v: OperationDetails) => void;
     const detailsPromise = new Promise<OperationDetails>((res) => {
       resolveDetails = res;
@@ -160,8 +171,8 @@ describe("ReclassifyPage", () => {
 
     resolveDetails(baseDetails);
     await screen.findByTestId("reclassify-module-select");
-    expect(screen.getByTestId("reclassify-agent-input")).toBeInTheDocument();
-    expect(screen.getByTestId("reclassify-persona-select")).toBeInTheDocument();
+    expect(screen.getByTestId("reclassify-platform-select")).toBeInTheDocument();
+    expect(screen.getByTestId("reclassify-agent-select")).toBeInTheDocument();
     // AI panel shows spinner while suggest still in flight.
     expect(screen.getByTestId("reclassify-ai-spinner")).toBeInTheDocument();
 
@@ -189,60 +200,65 @@ describe("ReclassifyPage", () => {
     expect(screen.queryByTestId("reclassify-ai-content")).toBeNull();
   });
 
-  // ── Case 4: clicking Use suggestion sets all 3 dropdowns ──────────────
-  it("clicking Use suggestion updates all 3 dropdown values", async () => {
+  // ── Case 4: clicking Use suggestion fills module + agent; leaves platform untouched ──
+  it("clicking Use suggestion updates module + agent dropdowns; platform unchanged", async () => {
     mockGetOperationDetails.mockResolvedValue(baseDetails);
     mockGetOperationSuggest.mockResolvedValue(happySuggest);
     render(<ReclassifyPage />);
     await screen.findByTestId("reclassify-ai-use-button");
+    // Wait for the agent dropdown to be populated so the suggested
+    // value renders as a real <option>.
+    await screen.findByTestId("reclassify-agent-select");
     fireEvent.click(screen.getByTestId("reclassify-ai-use-button"));
 
     const moduleSelect = screen.getByTestId(
       "reclassify-module-select",
     ) as HTMLSelectElement;
-    const agentInput = screen.getByTestId(
-      "reclassify-agent-input",
-    ) as HTMLInputElement;
-    const personaSelect = screen.getByTestId(
-      "reclassify-persona-select",
+    const agentSelect = screen.getByTestId(
+      "reclassify-agent-select",
+    ) as HTMLSelectElement;
+    const platformSelect = screen.getByTestId(
+      "reclassify-platform-select",
     ) as HTMLSelectElement;
     expect(moduleSelect.value).toBe("NDR");
-    expect(agentInput.value).toBe("ndr_resolver");
-    expect(personaSelect.value).toBe("seller");
+    expect(agentSelect.value).toBe("ndr_resolver");
+    // Phase-19 amendment — Use-suggestion path doesn't touch platform.
+    expect(platformSelect.value).toBe("seller_panel");
   });
 
-  // ── Case 5: Save with single-field change → PATCH body has only that ──
-  it("Save with single-field change posts only that field; redirects to APIs tab", async () => {
+  // ── Case 5: Save with single-field platform change → PATCH body has only platform ──
+  it("Save with platform change posts only platform; redirects to APIs tab on new platform", async () => {
     mockGetOperationDetails.mockResolvedValue(baseDetails);
     mockGetOperationSuggest.mockResolvedValue(happySuggest);
     mockSetOperationClassification.mockResolvedValue({
       id: 281,
-      module: "Shipment",
+      module: baseDetails.module,
       agent: baseDetails.agent,
       persona: baseDetails.persona,
-      module_curated: true,
+      module_curated: false,
       agent_curated: false,
       persona_curated: false,
-      platform: "seller_panel",
+      platform: "icrm_platform",
+      platform_curated: true,
     });
 
     render(<ReclassifyPage />);
-    const moduleSelect = (await screen.findByTestId(
-      "reclassify-module-select",
+    const platformSelect = (await screen.findByTestId(
+      "reclassify-platform-select",
     )) as HTMLSelectElement;
-    fireEvent.change(moduleSelect, { target: { value: "Shipment" } });
+    fireEvent.change(platformSelect, { target: { value: "icrm_platform" } });
 
     fireEvent.click(screen.getByTestId("reclassify-save-button"));
 
     await waitFor(() => {
       expect(mockSetOperationClassification).toHaveBeenCalledWith(281, {
-        module: "Shipment",
+        platform: "icrm_platform",
       });
     });
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith(
         expect.stringMatching(
-          /\/chat\/api-tools\?tab=apis&platform=seller_panel&module=Shipment/,
+          /\/chat\/api-tools\?tab=apis&platform=icrm_platform&module=Order/,
         ),
       );
     });
@@ -264,18 +280,18 @@ describe("ReclassifyPage", () => {
     mockGetOperationDetails.mockResolvedValue(baseDetails);
     mockGetOperationSuggest.mockResolvedValue(happySuggest);
     mockSetOperationClassification.mockRejectedValue(
-      new Error("422 — unknown module: Bogus"),
+      new Error("422 — invalid platform"),
     );
 
     render(<ReclassifyPage />);
-    const moduleSelect = (await screen.findByTestId(
-      "reclassify-module-select",
+    const platformSelect = (await screen.findByTestId(
+      "reclassify-platform-select",
     )) as HTMLSelectElement;
-    fireEvent.change(moduleSelect, { target: { value: "Shipment" } });
+    fireEvent.change(platformSelect, { target: { value: "icrm_platform" } });
     fireEvent.click(screen.getByTestId("reclassify-save-button"));
 
     expect(await screen.findByTestId("reclassify-save-error")).toHaveTextContent(
-      /unknown module: Bogus/,
+      /invalid platform/,
     );
     expect(mockReplace).not.toHaveBeenCalled();
   });
