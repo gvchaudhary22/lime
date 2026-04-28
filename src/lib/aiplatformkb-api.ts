@@ -178,6 +178,35 @@ import type {
   ToolMember,
 } from "@/types/api-tools";
 
+// Phase-22 (Wave-3A) — admin/pr-sync/discover (and classify/populate, which
+// shell out to the same GitHub-fetch path) now return a structured 4xx/502
+// detail when GitHub itself fails. Shape:
+//   { detail: { kind: "http"|"network"|"decode",
+//               github_status: number, github_message: string,
+//               github_errors?: [...], url?: string, hint?: string } }
+// We surface that as a single human-readable Error.message so the FE
+// component can render it (RepoSyncButton splits on " — " for a 2-row
+// layout). Non-structured detail (existing FastAPI string detail) falls
+// back to the legacy stringification so unrelated admin errors keep
+// their current message.
+type GitHubErrorDetail = {
+  kind?: string;
+  github_status?: number;
+  github_message?: string;
+  hint?: string;
+};
+
+function _formatGitHubErrorDetail(payload: unknown): string | null {
+  if (!payload || typeof payload !== "object") return null;
+  const detailRaw = (payload as { detail?: unknown }).detail;
+  if (!detailRaw || typeof detailRaw !== "object") return null;
+  const d = detailRaw as GitHubErrorDetail;
+  if (!d.kind || !d.github_message) return null;
+  const head = `GitHub ${d.github_status ?? "error"}: ${d.github_message}`;
+  const tail = d.hint ? ` — ${d.hint}` : "";
+  return head + tail;
+}
+
 async function jsonRequest<T>(
   method: "POST" | "PATCH" | "DELETE",
   path: string,
@@ -204,6 +233,13 @@ async function jsonRequest<T>(
   }
 
   if (!res.ok) {
+    // Phase-22 (Wave-3A) — prefer the structured GitHub-error detail when
+    // present so callers like RepoSyncButton get an actionable message
+    // instead of "[object Object]" / generic status text.
+    const githubMsg = _formatGitHubErrorDetail(payload);
+    if (githubMsg) {
+      throw new AiplatformkbApiError(res.status, payload, githubMsg);
+    }
     const detail =
       (payload && typeof payload === "object" && "detail" in payload
         ? String((payload as { detail: unknown }).detail)
@@ -408,13 +444,39 @@ import type {
   PrSyncStatus,
 } from "@/types/pr-sync";
 
+// Phase-22 (Wave-3A) — wrap the shared jsonRequest so the failure surface
+// renders an op-specific fallback ("discover failed (500)") for legacy /
+// non-structured errors while preserving the GitHub-prefixed message that
+// _formatGitHubErrorDetail emits for the new structured 4xx/502 detail.
+// classify + populate get the same wrapper since their backend handlers
+// shell out to the same GitHub-fetch path and surface identical errors.
+async function _runWithOpLabel<T>(
+  op: "discover" | "classify" | "populate",
+  fn: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await fn();
+  } catch (err) {
+    if (err instanceof AiplatformkbApiError) {
+      // _formatGitHubErrorDetail-flavoured messages start with "GitHub ".
+      // Non-structured fallback messages get the op-specific label so the
+      // RepoSyncButton (and other call sites) read "discover failed (500)".
+      if (err.message.startsWith("GitHub ")) throw err;
+      throw new Error(`${op} failed (${err.status})`);
+    }
+    throw err;
+  }
+}
+
 export function discoverPrs(
   payload: PrSyncDiscoverRequest
 ): Promise<PrSyncDiscoverResponse> {
-  return jsonRequest<PrSyncDiscoverResponse>(
-    "POST",
-    `/admin/pr-sync/discover`,
-    payload
+  return _runWithOpLabel("discover", () =>
+    jsonRequest<PrSyncDiscoverResponse>(
+      "POST",
+      `/admin/pr-sync/discover`,
+      payload
+    )
   );
 }
 
@@ -425,9 +487,11 @@ export function previewClassify(prId: number): Promise<ClassifyPreview> {
 }
 
 export function triggerClassify(prId: number): Promise<ClassifyResponse> {
-  return jsonRequest<ClassifyResponse>(
-    "POST",
-    `/admin/pr-sync/prs/${prId}/classify`
+  return _runWithOpLabel("classify", () =>
+    jsonRequest<ClassifyResponse>(
+      "POST",
+      `/admin/pr-sync/prs/${prId}/classify`
+    )
   );
 }
 
@@ -438,9 +502,11 @@ export function previewPopulate(prId: number): Promise<PopulatePreview> {
 }
 
 export function triggerPopulate(prId: number): Promise<PopulateResponse> {
-  return jsonRequest<PopulateResponse>(
-    "POST",
-    `/admin/pr-sync/prs/${prId}/populate`
+  return _runWithOpLabel("populate", () =>
+    jsonRequest<PopulateResponse>(
+      "POST",
+      `/admin/pr-sync/prs/${prId}/populate`
+    )
   );
 }
 
