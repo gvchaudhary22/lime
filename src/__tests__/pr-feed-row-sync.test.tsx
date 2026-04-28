@@ -15,6 +15,25 @@ function okJson(body: unknown) {
   return { ok: true, status: 200, json: async () => body };
 }
 
+// Phase-22 (Wave-3C) — !ok response with a parseable JSON body. Used to
+// drive the structured-detail / generic-fallback branches in jsonRequest.
+function errJson(status: number, body: unknown) {
+  return { ok: false, status, json: async () => body };
+}
+
+// Phase-22 (Wave-3C) — !ok response whose body isn't JSON (legacy 500
+// "Internal Server Error"). The api-client's res.json() rejects → the
+// parser falls back to "discover failed (<status>)".
+function errNonJson(status: number) {
+  return {
+    ok: false,
+    status,
+    json: async () => {
+      throw new Error("invalid json");
+    },
+  };
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
@@ -56,6 +75,58 @@ describe("RepoSyncButton", () => {
     );
     const [url] = mockFetch.mock.calls[0];
     expect(String(url)).toMatch(/\/admin\/pr-sync\/discover$/);
+  });
+});
+
+// Phase-22 Wave-3C — RepoSyncButton renders the new structured GitHub
+// error detail (kind/github_status/github_message/hint) emitted by the
+// backend when GitHub itself rejects the discover call. The button's
+// catch path stringifies err.message; the api-client's jsonRequest
+// formats `GitHub <status>: <msg> — <hint>` from the structured detail.
+describe("RepoSyncButton — Phase 22 GitHub errors", () => {
+  it("renders structured GitHub error with hint in 2-row layout", async () => {
+    mockFetch.mockResolvedValueOnce(
+      errJson(422, {
+        detail: {
+          kind: "http",
+          github_status: 422,
+          github_message: "Validation Failed",
+          github_errors: [
+            { resource: "Search", field: "q", code: "invalid", message: "..." },
+          ],
+          url: "https://api.github.com/search/issues?q=repo:acme/widgets+is:pr+is:merged",
+          hint: "Repo cannot be searched. Either it doesn't exist OR the configured GITHUB_TOKEN can't see it...",
+        },
+      })
+    );
+    render(<RepoSyncButton org="acme" repo="widgets" />);
+    fireEvent.click(screen.getByRole("button", { name: /sync new prs/i }));
+    // Row 1: GitHub status + message (rose-400).
+    await waitFor(() =>
+      expect(
+        screen.getByText(/GitHub 422: Validation Failed/i)
+      ).toBeInTheDocument()
+    );
+    // Row 2: hint (slate-400). Two distinct text nodes confirm the
+    // 2-row layout from Wave-3B is wired up.
+    expect(screen.getByText(/can't see it/i)).toBeInTheDocument();
+  });
+
+  it("renders generic 'discover failed' for non-structured errors", async () => {
+    // Legacy 500 with a non-JSON body — jsonRequest's res.json() rejects,
+    // parser falls back to the op-specific "discover failed (500)" label
+    // emitted by _runWithOpLabel.
+    mockFetch.mockResolvedValueOnce(errNonJson(500));
+    const { container } = render(
+      <RepoSyncButton org="acme" repo="widgets" />
+    );
+    fireEvent.click(screen.getByRole("button", { name: /sync new prs/i }));
+    await waitFor(() =>
+      expect(screen.getByText(/discover failed \(500\)/)).toBeInTheDocument()
+    );
+    // No 2-row block: the hint row (slate-400) must NOT be in the DOM
+    // for non-structured fallbacks.
+    expect(container.querySelector(".text-slate-400")).toBeNull();
   });
 });
 
