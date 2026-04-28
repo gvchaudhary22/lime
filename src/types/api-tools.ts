@@ -235,12 +235,18 @@ export interface OperationSuggestCurrent {
   module: string;
   agent: string | null;
   persona: string | null;
+  // Phase-20 — the row's current platform value, mirrored in the suggest
+  // payload so the UI can show "current → suggested" deltas.
+  platform: string | null;
 }
 
 export interface OperationSuggest {
   module: string | null;
   agent: string | null;
   persona: string | null;
+  // Phase-20 — LLM's platform pick (or null on out-of-enum drop). The
+  // backend validates against the platforms table allowlist.
+  platform: string | null;
   current: OperationSuggestCurrent;
   reasoning: string;
   model: string;
