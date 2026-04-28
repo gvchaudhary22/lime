@@ -6,6 +6,62 @@ Format: [Semantic Versioning](https://semver.org/) — `v{milestone}.{phase}` al
 
 ---
 
+## [Unreleased] — feat/23-async-discover-job (Phase 23)
+
+### Feature — Async-job state machine on `RepoSyncButton` + polling hook + UX touch-ups (Phase 23)
+
+**Branch**: `gvchaudhary22/lime` → `feat/23-async-discover-job` (cut from main; aiplatformkb backend ships in lockstep at `BFRS-2/aiplatformkb feat/23-async-discover-job`)
+**Phase**: M1-P23 — frontend half of the sync→async cut. Backend now returns `202` immediately and exposes a status endpoint; lime polls for terminal state.
+**Tests**: 11 vitest pass on `pr-feed-row-sync.test.tsx` (8 Phase-22 + 3 Phase-23). 18 pass on the broader `pr-feed-row-sync + pr-sync-client` surface. `tsc --noEmit` clean for Phase-23 files.
+
+#### Why
+
+Backend Phase 23 (cross-repo `BFRS-2/aiplatformkb#39`) cuts `POST /admin/pr-sync/discover` from synchronous (5–30s blocking on GitHub fetch) to fire-and-forget job (202 + background worker + status polling endpoint). Without this lime change the new contract is unusable from the UI.
+
+Live UAT measurement: `bfrs/MultiChannel_API` discover takes ~44 seconds for 207 PRs / 8,747 changed files. Pre-Phase-23 the operator's browser blocked for the entire 44s. Post-Phase-23 the response returns in <1 second and the FE shows a "Discovering…" spinner that resolves to a count when the background worker finalizes the row.
+
+#### What shipped
+
+**Types** (`src/types/pr-sync.ts`).
+- `DiscoverJobAccepted = {sync_run_id, status: "running", scope}` — 202 response shape.
+- `DiscoverJobStatus = {sync_run_id, org, repo, status: "running"|"done"|"failed", started_at, finished_at, error_message, error_detail, discovered_count, discovered_pr_ids}` — GET /status response.
+- `GitHubErrorDetail` shared with Phase 22 — kind / github_status / github_message / github_errors[] / url / hint.
+- `PrSyncDiscoverResponse` retained as deprecated alias for one PR cycle.
+
+**Client** (`src/lib/aiplatformkb-api.ts`).
+- `discoverPrs()` return-type changed to `Promise<DiscoverJobAccepted>`. Body unchanged — `_runWithOpLabel` wrapper still applies; the 202 hits the success path so the Phase-22 GitHub-error parser doesn't fire on the POST.
+- New `getDiscoverJobStatus(syncRunId)` — uses the existing `adminUrl` + `getJson` helpers.
+
+**Polling hook** (`src/hooks/useDiscoverJobStatus.ts` — NEW, mirrors Phase-13 `useSyncRowStatus`).
+- Recursive `setTimeout` poll loop (serializes ticks; no overlap on slow ticks).
+- Alive-guard ref + cancellation flag covering both effect re-run and unmount.
+- Terminal set: `done | failed`. Hook stops polling on terminal; `setActiveJobId(null)` from the parent fully unmounts.
+- Transient errors tolerated (continues polling on a single failed fetch — locked by V3 vitest case).
+
+**Button state machine** (`src/components/pr-sync/RepoSyncButton.tsx`).
+- States: idle → submitting (POST in flight) → running (polling) → done | failed → idle.
+- "Discovering…" label while polling. `disabled = !org || !repo || submitting || isRunning`.
+- The Phase-22 2-row error block JSX is **REUSED unchanged** — `_formatJobErrorDetail(detail)` produces the same `"GitHub <status>: <msg> — <hint>"` string the Phase-22 throw path emitted, so the existing IIFE renderer keeps working bit-for-bit.
+- 3 new vitest cases: V1 click→202→polls→done with count fires `onDiscovered`; V2 polled `failed` renders 2-row block; V3 unmount-mid-poll alive-guard contract.
+
+**Mid-ship UX hardening** (commit f334165, bundled into Phase-23 PR per user request during ship session).
+- **Horizontal scroll on PR Feed list + detail tables** — the rounded `overflow-hidden` card was clipping the 10-column `PrTable` / `ImpactsTable` on narrow viewports. Wrap each table in `<div className="overflow-x-auto">` so the table scrolls horizontally inside the rounded card while Pagination stays put. Two-line change in each of `pr-feed/page.tsx` + `pr-feed/[prId]/page.tsx`.
+- **Title column truncation tooltip** — shrink `PrTable` title cell from `max-w-md` (32rem) to `max-w-[20rem]` (320px) AND add `title={pr.pr_title}` for the native browser tooltip on hover. No new dependency.
+
+#### Cross-repo dependency
+
+Backend half: `BFRS-2/aiplatformkb#39`. Either repo can merge first — the FE's `_formatJobErrorDetail` falls through cleanly when `error_detail` is null, so worst case the FE renders `error_message` text on legacy backends.
+
+#### Tracked residuals (Phase 24)
+
+- **TS-MED-1** — `RepoSyncButton`'s terminal-handler `useEffect([jobStatus, onDiscovered])` can theoretically double-fire `onDiscovered` if the parent passes a fresh callback ref (inline arrow). Empirically not reproducible; practical impact = idempotent duplicate refetch. Stable callback ref OR `lastReportedRef.current === sync_run_id` guard.
+- **TS-MED-2** — `GitHubErrorDetail.kind` typed as `string` instead of `"http" | "network" | "decode"` literal union (Phase-22 carry-over).
+- **TS-LOW-1** — Dedupe `_formatJobErrorDetail` (RepoSyncButton) and `_formatGitHubErrorDetail` (api-client).
+- **TS-LOW-3** — `aria-live` / `role="alert"` / `aria-busy` on the error block + polling-state surface (Phase-22 a11y carry-over).
+- **TS-LOW-4** — `AbortSignal` threading on the polling hook (Phase-21 AbortController pattern).
+
+---
+
 ## [Unreleased] — feat/22-discover-error-hardening (Phase 22)
 
 ### Hardening — Parse structured GitHub-error detail in `RepoSyncButton` (Phase 22 — lime side)

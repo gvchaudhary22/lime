@@ -2,11 +2,20 @@
 
 // Phase 13 Wave 3B — header button on /chat/pr-feed.
 // Triggers a cheap GitHub poll for new PRs in the currently-filtered repo.
+//
+// Phase-23 (Wave-3C) — discover is now async. The POST returns 202 with
+// {sync_run_id}; we drive a polling state machine via
+// useDiscoverJobStatus and only fire onDiscovered() when the job
+// status flips to "done". On "failed" we synthesize the same
+// `GitHub <status>: <msg> — <hint>` message the Phase-22 path uses, so
+// the existing 2-row error block JSX is reused unchanged.
 
 import { GitPullRequestArrow, Loader2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { discoverPrs } from "@/lib/aiplatformkb-api";
+import { useDiscoverJobStatus } from "@/hooks/useDiscoverJobStatus";
+import type { GitHubErrorDetail } from "@/types/pr-sync";
 
 interface Props {
   org: string | null;
@@ -14,24 +23,65 @@ interface Props {
   onDiscovered?: (count: number, prIds: number[]) => void;
 }
 
+// Mirror _formatGitHubErrorDetail in aiplatformkb-api.ts so the failed-job
+// path produces the same `GitHub <status>: <msg> — <hint>` string the
+// Phase-22 throw-path used. Keeps the 2-row error block JSX a
+// single-source format.
+function _formatJobErrorDetail(d: GitHubErrorDetail): string {
+  const head = `GitHub ${d.github_status ?? "error"}: ${d.github_message ?? "(no message)"}`;
+  const tail = d.hint ? ` — ${d.hint}` : "";
+  return head + tail;
+}
+
 export default function RepoSyncButton({ org, repo, onDiscovered }: Props) {
-  const [busy, setBusy] = useState(false);
+  const [activeJobId, setActiveJobId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const disabled = !org || !repo || busy;
+  const [submitting, setSubmitting] = useState(false);
+  const { status: jobStatus } = useDiscoverJobStatus(activeJobId, 2000);
+
+  const isRunning = activeJobId !== null;
+  const disabled = !org || !repo || submitting || isRunning;
 
   async function handle() {
     if (!org || !repo) return;
-    setBusy(true);
+    setSubmitting(true);
     setError(null);
     try {
       const r = await discoverPrs({ org, repo });
-      onDiscovered?.(r.discovered_count, r.discovered_pr_ids);
+      // Polling kicks in via the effect below.
+      setActiveJobId(r.sync_run_id);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "discover failed");
     } finally {
-      setBusy(false);
+      setSubmitting(false);
     }
   }
+
+  // React to terminal job status from the polling hook. On "done", fire
+  // onDiscovered with the row counts and clear activeJobId so the button
+  // becomes clickable again. On "failed", synthesize the same
+  // GitHub-prefixed error string the Phase-22 throw-path used so the
+  // existing 2-row error block JSX renders unchanged.
+  useEffect(() => {
+    if (!jobStatus) return;
+    if (jobStatus.status === "done") {
+      onDiscovered?.(
+        jobStatus.discovered_count ?? 0,
+        jobStatus.discovered_pr_ids ?? [],
+      );
+      setActiveJobId(null);
+    } else if (jobStatus.status === "failed") {
+      if (jobStatus.error_detail) {
+        setError(_formatJobErrorDetail(jobStatus.error_detail));
+      } else {
+        setError(jobStatus.error_message ?? "discover failed");
+      }
+      setActiveJobId(null);
+    }
+  }, [jobStatus, onDiscovered]);
+
+  const showSpinner = submitting || isRunning;
+  const buttonLabel = isRunning && !submitting ? "Discovering…" : "Sync new PRs";
 
   return (
     <div className="flex items-center gap-2">
@@ -45,12 +95,12 @@ export default function RepoSyncButton({ org, repo, onDiscovered }: Props) {
         }
         className="inline-flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.02] px-3 py-1.5 text-sm text-slate-200 transition hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-50"
       >
-        {busy ? (
+        {showSpinner ? (
           <Loader2 className="h-3.5 w-3.5 animate-spin" />
         ) : (
           <GitPullRequestArrow className="h-3.5 w-3.5" />
         )}
-        Sync new PRs
+        {buttonLabel}
       </button>
       {error &&
         (error.startsWith("GitHub ")
@@ -60,6 +110,11 @@ export default function RepoSyncButton({ org, repo, onDiscovered }: Props) {
               // message arrives as `GitHub <status>: <msg> — <hint>`.
               // Split on the " — " separator so the hint wraps onto a
               // softer second row; pure presentation, no logic change.
+              //
+              // Phase-23 (Wave-3C) — the source of `error` shifted from
+              // a thrown Error to the polled jobStatus.error_detail, but
+              // the formatter is identical, so this JSX is reused
+              // unchanged.
               const sepIdx = error.indexOf(" — ");
               const head = sepIdx >= 0 ? error.slice(0, sepIdx) : error;
               const hint = sepIdx >= 0 ? error.slice(sepIdx + 3) : "";

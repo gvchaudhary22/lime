@@ -270,10 +270,12 @@ function PrFeedDetailPageInner() {
               />
 
               <div className="overflow-hidden rounded-xl border border-white/[0.06] bg-white/[0.02]">
-                <ImpactsTable
-                  items={data.impacts.items}
-                  onRowClick={setDrawerImpact}
-                />
+                <div className="overflow-x-auto">
+                  <ImpactsTable
+                    items={data.impacts.items}
+                    onRowClick={setDrawerImpact}
+                  />
+                </div>
                 <Pagination
                   total={data.impacts.total}
                   limit={data.impacts.limit}
