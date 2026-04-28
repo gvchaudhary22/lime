@@ -10,6 +10,7 @@ export type SyncLifecycleStatus =
 export interface PrSyncDiscoverRequest {
   org: string;
   repo: string;
+  base_branch?: string;   // Phase 17 — optional; server defaults to "master"
   domain?: string;
   limit_prs?: number;
 }

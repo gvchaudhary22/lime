@@ -54,17 +54,24 @@ export default function ApisTab() {
   // TS-H2 — alive-guard prevents setState on unmounted component if
   // user clicks away before the fetch resolves. Functional-updater on
   // setModuleName (TS-H1) avoids capturing the initial empty closure.
+  // Phase-17 §4.3 — refetch modules when platform changes; preserve the
+  // current moduleName if it still exists in the new platform's list,
+  // otherwise fall to the first available (or empty if list is empty).
+  // Empty-string platform → omit the query param (back-compat with
+  // global-list call).
   useEffect(() => {
     let alive = true;
-    listAdminModules()
+    listAdminModules(platform || undefined)
       .then((rows) => {
         if (!alive) return;
         setModules(rows);
-        setModuleName((cur) => cur || rows[0]?.module_name || "");
+        setModuleName((cur) =>
+          rows.some((r) => r.module_name === cur) ? cur : (rows[0]?.module_name ?? "")
+        );
       })
       .catch((err) => { if (alive) setError(_msg(err)); });
     return () => { alive = false; };
-  }, []);
+  }, [platform]);
 
   // Phase-20 — platforms list sourced from /admin/platforms (DB-backed
   // ground truth). Empty array on fetch failure is acceptable — the
@@ -163,7 +170,7 @@ export default function ApisTab() {
     // dirty-marked by the change.
     const flip = (list: AdminOperation[]) =>
       list.map((o) => (o.id === op.id ? { ...o, ai_platform_eligible_api: newFlag } : o));
-    setLocalOps(flip);
+    setLocalOps((prev) => (prev ? flip(prev) : prev));
     setServerOps((prev) => (prev ? flip(prev) : prev));
 
     try {
@@ -172,7 +179,7 @@ export default function ApisTab() {
       // Rollback both copies.
       const revert = (list: AdminOperation[]) =>
         list.map((o) => (o.id === op.id ? { ...o, ai_platform_eligible_api: !newFlag } : o));
-      setLocalOps(revert);
+      setLocalOps((prev) => (prev ? revert(prev) : prev));
       setServerOps((prev) => (prev ? revert(prev) : prev));
       setError(_msg(err));
     }

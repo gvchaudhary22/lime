@@ -36,6 +36,7 @@ function _formatJobErrorDetail(d: GitHubErrorDetail): string {
 export default function RepoSyncButton({ org, repo, onDiscovered }: Props) {
   const [activeJobId, setActiveJobId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [branch, setBranch] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const { status: jobStatus } = useDiscoverJobStatus(activeJobId, 2000);
 
@@ -47,7 +48,16 @@ export default function RepoSyncButton({ org, repo, onDiscovered }: Props) {
     setSubmitting(true);
     setError(null);
     try {
-      const r = await discoverPrs({ org, repo });
+      // Phase 17 — branch input threads through as `base_branch?`.
+      // Empty / whitespace-only input omits the field so the backend
+      // defaults to master. Phase 23 — POST returns 202 with a job
+      // handle; polling drives the terminal state.
+      const trimmed = branch.trim();
+      const r = await discoverPrs({
+        org,
+        repo,
+        ...(trimmed ? { base_branch: trimmed } : {}),
+      });
       // Polling kicks in via the effect below.
       setActiveJobId(r.sync_run_id);
     } catch (e: unknown) {
@@ -85,6 +95,26 @@ export default function RepoSyncButton({ org, repo, onDiscovered }: Props) {
 
   return (
     <div className="flex items-center gap-2">
+      <input
+        type="text"
+        value={branch}
+        onChange={(e) => setBranch(e.target.value)}
+        placeholder="master"
+        disabled={disabled}
+        maxLength={128}
+        list="repo-sync-branch-suggestions"
+        aria-label="Base branch (default: master)"
+        title="Base branch to discover PRs against — leave blank to use master"
+        className="w-32 rounded border border-white/[0.06] bg-[#0a0f1e] px-2 py-1.5 text-sm text-slate-200 placeholder-slate-600 focus:border-cyan-500/40 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+      />
+      {/* Suggestions for the two canonical default branches. Operators can
+          still type any value (free-text input); datalist just makes the
+          common case a one-click pick. Mirrors the backend hardening that
+          always includes master + main in /api/v1/prs/filters/options. */}
+      <datalist id="repo-sync-branch-suggestions">
+        <option value="master" />
+        <option value="main" />
+      </datalist>
       <button
         onClick={handle}
         disabled={disabled}

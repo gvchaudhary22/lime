@@ -6,6 +6,85 @@ Format: [Semantic Versioning](https://semver.org/) — `v{milestone}.{phase}` al
 
 ---
 
+## [Unreleased] — feat/17-base-branch-and-module-scoping (Phase 17)
+
+### Feature — RepoSyncButton branch input + ApisTab platform-scoped module dropdown (Phase 17)
+
+**Branch**: `gvchaudhary22/lime` → `feat/17-base-branch-and-module-scoping` (option-A stack: cut from `feat/16-api-tools-details`; merges only after Phase-16 lime PR lands)
+**aiplatformkb cross-link**: `BFRS-2/aiplatformkb` → `feat/17-base-branch-and-module-scoping`
+**Phase**: M1-P17 (free-text branch input on PR Feed + per-platform module scoping on API Tools)
+**Tests**: 8 vitest pass on Phase-17 surface (5 RepoSyncButton + 3 ApisTab). Sibling regression sweep clean except 1 pre-existing failure in `aiplatformkb-admin-proxy.test.ts` confirmed caused by Phase-16 dev-mode WIP (out of Phase-17 scope; see Phase-16 entry).
+
+#### `<RepoSyncButton />` — branch input
+
+`src/components/pr-sync/RepoSyncButton.tsx` adds a free-text `<input>` immediately to the left of the **Sync New PRs** button. Bound to local state, submitted as part of the `discoverPrs` payload:
+
+- `placeholder="master"` (matches actual server fallback — placeholder is truthful, not aspirational)
+- `aria-label="Base branch (default: master)"` + `title=...` for SR + tooltip
+- `maxLength={128}` matches backend Pydantic regex `^[A-Za-z0-9_./-]{1,128}$`
+- `disabled={!org || !repo || busy}` — same gate as the button itself
+- Tailwind classes copied from `FilterBar.tsx` form-input pattern for visual consistency
+
+Click handler trims the input; non-empty value → `{ org, repo, base_branch: trimmed }`; empty/whitespace → `{ org, repo }` (omits the field entirely so the server defaults to `"master"` — full back-compat). Spread pattern `...(trimmed ? { base_branch: trimmed } : {})` ensures absent-key shape, asserted via vitest.
+
+#### `<ApisTab />` — platform-scoped module fetch
+
+`src/app/chat/api-tools/components/ApisTab.tsx` modules-fetch effect:
+
+- Now depends on `[platform]` (was `[]` — fired once on mount, never refetched).
+- Calls `listAdminModules(platform || undefined)` — empty platform string falls through to the backend's no-param path (which still returns the global `module_descriptions` list).
+- Functional `setModuleName((cur) => ...)` updater preserves the previous selection when the module exists in the new platform's list, otherwise falls to the first available (or empty if list is empty). Phase-12's TS-H1 alive-guard pattern propagated.
+
+`src/lib/aiplatformkb-api.ts`:
+
+```typescript
+export function listAdminModules(platform?: string): Promise<AdminModule[]> {
+  const qs = platform ? `?platform=${encodeURIComponent(platform)}` : "";
+  return getJson<AdminModule[]>(`/admin/modules${qs}`);
+}
+```
+
+`src/types/pr-sync.ts`:
+
+```typescript
+export interface PrSyncDiscoverRequest {
+  org: string;
+  repo: string;
+  base_branch?: string;   // NEW — optional, server defaults to "master"
+}
+```
+
+#### Behavior change worth noting
+
+**First-mount network call changes**: pre-Phase-17, ApisTab fetched `/admin/modules` (global). Post-Phase-17, ApisTab fetches `/admin/modules?platform=seller_panel` (because the default state is `"seller_panel"`). Other consumers of the no-param path (e.g., ModulesTab) are unaffected — the backend still returns the global list when `?platform` is omitted.
+
+#### Test coverage
+
+`src/components/pr-sync/__tests__/RepoSyncButton.test.tsx` (new, 5 cases):
+  • renders branch input that is disabled until org and repo are set
+  • passes `base_branch` in payload when input has a value
+  • omits `base_branch` when input is empty (back-compat)
+  • whitespace-only input is treated as empty
+  • trims surrounding whitespace from non-empty input
+
+`src/app/chat/api-tools/components/__tests__/ApisTab.test.tsx` (new, 3 cases):
+  • refetches modules when platform changes and passes `?platform=<value>`
+  • resets `moduleName` when previously-selected module is absent in new platform list
+  • preserves `moduleName` when same module exists in new platform's list
+
+#### Review residuals (none CRIT/HIGH)
+
+  • TS-M1 (index-based combobox helpers in ApisTab.test) — operational; switch to `getByLabelText`.
+  • TS-L1 (200ms stale-flicker on platform-flip refetch) — waived; self-heals via reconcile.
+  • TS-L3 (branch input uses `aria-label`, not `<label htmlFor>`) — operational; matches FilterBar precedent. Track for v2 a11y polish.
+  • TS-L4 (no localStorage memory of last-used branch per (org, repo)) — tracked; plan §11.3 OQ #3 deferred.
+
+#### Phase-23 rebase note (added 2026-04-28)
+
+Phase 17's `RepoSyncButton.tsx` branch input has been ported on top of the Phase-23 async-job state machine landed on main via lime PR #17. The branch field still threads through `discoverPrs` payload as `base_branch?: string`, but the request now resolves with `DiscoverJobAccepted` (202 + sync_run_id) and the polling hook drives terminal status. The `route.ts` dev-mode unblock (Sec-MED-1) is **dropped** during the rebase per the original PR's own mitigation guidance — the file resets to `main`'s strict-shape version. Phase-22 + Phase-23 work on `RepoSyncButton.tsx` (2-row error block + state machine) preserved.
+
+---
+
 ## [Unreleased] — feat/23-async-discover-job (Phase 23)
 
 ### Feature — Async-job state machine on `RepoSyncButton` + polling hook + UX touch-ups (Phase 23)

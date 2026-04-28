@@ -100,7 +100,10 @@ function DateInput({
         onChange={(e) =>
           onChange(e.target.value === "" ? undefined : e.target.value)
         }
-        className="rounded border border-white/[0.06] bg-[#0a0f1e] px-2 py-1.5 text-sm text-slate-200 focus:border-cyan-500/40 focus:outline-none"
+        // `[color-scheme:dark]` flips Chrome/Safari's native date picker
+        // (calendar icon, mm/dd/yyyy placeholder) to its dark-theme palette
+        // so it's legible on the #0a0f1e background.
+        className="rounded border border-white/[0.06] bg-[#0a0f1e] px-2 py-1.5 text-sm text-slate-200 focus:border-cyan-500/40 focus:outline-none [color-scheme:dark]"
       />
     </label>
   );
