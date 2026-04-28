@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -104,6 +104,16 @@ function ReclassifyPageInner() {
   // Refetch nonce — bump to retry initial load on error.
   const [retryNonce, setRetryNonce] = useState(0);
 
+  // Phase-21 (Wave-1C) — single in-flight AbortController for the
+  // platform-scoped agents fetch. The Reclassify page has TWO handlers
+  // that re-fetch agents on platform change (the platform <select>
+  // onChange and the Use-suggestion handler when the LLM picks a new
+  // platform). Without an alive-guard, rapid toggles (A → B → A) can
+  // resolve out of order and leave `agents` matching B even when the
+  // selected platform is A. Each call to `refetchAgentsFor` aborts the
+  // prior in-flight fetch so only the LATEST resolution wins.
+  const agentsFetchAbort = useRef<AbortController | null>(null);
+
   useEffect(() => {
     if (idNum === null) {
       setDetailsState({ status: "error", error: "invalid operation id" });
@@ -202,6 +212,64 @@ function ReclassifyPageInner() {
     );
   }, [details, moduleValue, agentValue, platformValue, usedSuggestion]);
 
+  // Phase-21 (Wave-1C) — abort any in-flight agents fetch on unmount so
+  // a late resolution doesn't call setAgents on a torn-down component.
+  useEffect(() => {
+    return () => {
+      agentsFetchAbort.current?.abort();
+    };
+  }, []);
+
+  // Phase-21 (Wave-1C) — single re-fetch helper used by both the
+  // platform-onChange handler and the Use-suggestion handler. Aborts
+  // any prior in-flight fetch so only the LATEST resolution wins.
+  // `suggestedAgentToPreserve` (Use-suggestion path) appends an
+  // AI-recommended agent that may not be in the new platform's list yet.
+  const refetchAgentsFor = (
+    platform: string,
+    suggestedAgentToPreserve?: string | null,
+  ) => {
+    agentsFetchAbort.current?.abort();
+    const controller = new AbortController();
+    agentsFetchAbort.current = controller;
+
+    listAdminAgents(platform, controller.signal)
+      .then((rows) => {
+        if (controller.signal.aborted) return;
+        if (
+          suggestedAgentToPreserve &&
+          !rows.includes(suggestedAgentToPreserve)
+        ) {
+          setAgents([...rows, suggestedAgentToPreserve].sort());
+        } else {
+          setAgents(rows);
+        }
+        // Reset agentValue if the previously-selected agent isn't in
+        // the new platform's list (Phase-19-amendment defense). Skip
+        // the reset when the missing agent IS the AI-suggested one
+        // we just appended.
+        if (
+          agentValue &&
+          !rows.includes(agentValue) &&
+          agentValue !== suggestedAgentToPreserve
+        ) {
+          setAgentValue("");
+        }
+      })
+      .catch((err: unknown) => {
+        if (
+          err &&
+          typeof err === "object" &&
+          "name" in err &&
+          (err as { name: unknown }).name === "AbortError"
+        ) {
+          return;
+        }
+        // Best-effort — degrade silently. Page stays interactive; the
+        // existing agents list (pre-toggle) remains the dropdown source.
+      });
+  };
+
   const handleUseSuggestion = () => {
     if (suggestState.status !== "loaded") return;
     const s = suggestState.data;
@@ -222,21 +290,14 @@ function ReclassifyPageInner() {
     // defense the platform-onChange path uses: if the suggested agent
     // isn't in the new platform's list, append it so the <option>
     // renders.
+    //
+    // Phase-21 (Wave-1C) — route through `refetchAgentsFor` so the
+    // fetch is alive-guarded (aborts any in-flight platform-onChange
+    // fetch); only the latest resolution wins.
     if (s.platform && platforms.includes(s.platform)) {
       const suggestedPlatform = s.platform;
       setPlatformValue(suggestedPlatform);
-      listAdminAgents(suggestedPlatform)
-        .then((rows) => {
-          if (s.agent && !rows.includes(s.agent)) {
-            setAgents([...rows, s.agent].sort());
-          } else {
-            setAgents(rows);
-          }
-        })
-        .catch(() => {
-          // Best-effort — fallback dropdown stays valid because we
-          // already appended the suggested agent above.
-        });
+      refetchAgentsFor(suggestedPlatform, s.agent ?? null);
     }
     setUsedSuggestion(true);
   };
@@ -366,20 +427,14 @@ function ReclassifyPageInner() {
                         const next = e.target.value;
                         setPlatformValue(next);
                         setUsedSuggestion(false);
-                        // Re-fetch agents scoped to the new platform; reset
-                        // the agent value if the previous pick isn't in the
-                        // new list (it would otherwise render as a stale
-                        // <option> with no source row backing it).
-                        listAdminAgents(next)
-                          .then((rows) => {
-                            setAgents(rows);
-                            if (agentValue && !rows.includes(agentValue)) {
-                              setAgentValue("");
-                            }
-                          })
-                          .catch(() => {
-                            setAgents([]);
-                          });
+                        // Re-fetch agents scoped to the new platform.
+                        // Phase-21 (Wave-1C) — routed through
+                        // `refetchAgentsFor` so rapid A → B → A toggles
+                        // can't land out of order; only the latest
+                        // fetch resolves. The helper also handles the
+                        // agent-value reset when the previous pick
+                        // isn't in the new list.
+                        refetchAgentsFor(next);
                       }}
                       data-testid="reclassify-platform-select"
                       className="w-full rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-slate-200"

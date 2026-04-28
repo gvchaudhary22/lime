@@ -64,15 +64,23 @@ function buildQuery(
   return s ? `?${s}` : "";
 }
 
-async function getJson<T>(path: string): Promise<T> {
+async function getJson<T>(
+  path: string,
+  options?: { signal?: AbortSignal },
+): Promise<T> {
   // /admin/* routes through Lime server-side proxy (Phase 13 Wave 1C);
   // public endpoints stay direct against aiplatformkb.
   const url = path.startsWith("/admin/") ? adminUrl(path) : `${BASE_URL}${path}`;
   // Note: client never attaches Authorization. The proxy injects it for
   // /admin/* calls; public endpoints remain auth-less per Phase-6 contract.
+  // Phase-21 (Wave-1C) — optional AbortSignal threaded into fetch so
+  // call sites that race overlapping fetches (Reclassify page's
+  // platform-onChange + Use-suggestion handlers) can cancel stale
+  // in-flight requests instead of letting late resolutions clobber state.
   const res = await fetch(url, {
     method: "GET",
     headers: { Accept: "application/json" },
+    signal: options?.signal,
   });
 
   let body: unknown = null;
@@ -227,9 +235,17 @@ export function listAdminPlatforms(): Promise<string[]> {
 // `platform` query param scopes the list to one platform (mirrors
 // listAdminModules's contract). The Reclassify-page Agent dropdown
 // re-fetches with the current platform so options track the row.
-export function listAdminAgents(platform?: string): Promise<string[]> {
+//
+// Phase-21 (Wave-1C) — accepts an optional AbortSignal so the
+// Reclassify page can cancel a stale in-flight fetch when the curator
+// rapidly toggles platforms (or fires Use-suggestion mid-fetch);
+// only the LATEST resolution wins.
+export function listAdminAgents(
+  platform?: string,
+  signal?: AbortSignal,
+): Promise<string[]> {
   const qs = platform ? `?platform=${encodeURIComponent(platform)}` : "";
-  return getJson<string[]>(`/admin/agents${qs}`);
+  return getJson<string[]>(`/admin/agents${qs}`, { signal });
 }
 
 export function reorderModules(

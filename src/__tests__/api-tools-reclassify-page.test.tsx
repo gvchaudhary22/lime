@@ -342,6 +342,203 @@ describe("ReclassifyPage", () => {
     expect(platformRow).toHaveTextContent("icrm_platform");
   });
 
+  // ── Case 11 (Phase-21 Wave-1C): rapid platform-toggle A → B → A race ──
+  // Curator toggles platform A → B → A in rapid succession. Three
+  // concurrent listAdminAgents calls race; without an alive-guard the
+  // final `agents` state could match B even though selected platform
+  // is A. The AbortController sweep ensures only the LATEST fetch
+  // resolves into setAgents.
+  it("aborts in-flight agent fetch when platform changes rapidly (A → B → A)", async () => {
+    mockGetOperationDetails.mockResolvedValue(baseDetails);
+    mockGetOperationSuggest.mockResolvedValue(fallbackSuggest);
+
+    // Pre-toggle: mount fires listAdminAgents("seller_panel") → resolve
+    // immediately so the page reaches steady state before the race.
+    const seller_panel_agents = ["ndr_resolver", "shipment_ops"];
+    const icrm_agents = ["icrm_agent_1", "icrm_agent_2"];
+    const srx_agents = ["srx_agent_x", "srx_agent_y"];
+
+    // Hold references to each call's resolver + AbortSignal so we can
+    // simulate out-of-order resolution AND assert the abort signal was
+    // wired through.
+    const calls: Array<{
+      platform: string;
+      signal?: AbortSignal;
+      resolve: (rows: string[]) => void;
+    }> = [];
+
+    mockListAdminAgents.mockImplementation(
+      (platform: string, signal?: AbortSignal) => {
+        // Mount call resolves immediately so the page reaches steady
+        // state before the race begins.
+        if (calls.length === 0 && platform === "seller_panel") {
+          calls.push({ platform, signal, resolve: () => {} });
+          return Promise.resolve(seller_panel_agents);
+        }
+        return new Promise<string[]>((res) => {
+          calls.push({ platform, signal, resolve: res });
+        });
+      },
+    );
+
+    render(<ReclassifyPage />);
+    const platformSelect = (await screen.findByTestId(
+      "reclassify-platform-select",
+    )) as HTMLSelectElement;
+    // Wait for mount steady state.
+    await waitFor(() => {
+      expect(mockListAdminAgents).toHaveBeenCalled();
+    });
+
+    // Race: A (icrm) → B (srx) → A (icrm) again.
+    fireEvent.change(platformSelect, { target: { value: "icrm_platform" } });
+    fireEvent.change(platformSelect, { target: { value: "srx" } });
+    fireEvent.change(platformSelect, { target: { value: "icrm_platform" } });
+
+    // 4 calls: 1 mount + 3 toggle.
+    await waitFor(() => {
+      expect(mockListAdminAgents.mock.calls.length).toBeGreaterThanOrEqual(4);
+    });
+
+    // calls[1] = first icrm; calls[2] = srx; calls[3] = second icrm.
+    const firstIcrm = calls[1];
+    const srxCall = calls[2];
+    const secondIcrm = calls[3];
+
+    // Each toggle must have wired an AbortSignal.
+    expect(firstIcrm.signal).toBeInstanceOf(AbortSignal);
+    expect(srxCall.signal).toBeInstanceOf(AbortSignal);
+    expect(secondIcrm.signal).toBeInstanceOf(AbortSignal);
+
+    // The first two should be aborted by the time the third fires.
+    expect(firstIcrm.signal!.aborted).toBe(true);
+    expect(srxCall.signal!.aborted).toBe(true);
+    expect(secondIcrm.signal!.aborted).toBe(false);
+
+    // Resolve out of order: srx (B) resolves LAST, after the second
+    // icrm (A) has resolved. Without the alive-guard, agents would end
+    // up = srx_agents.
+    secondIcrm.resolve(icrm_agents);
+    // Yield microtask so React commits the state.
+    await waitFor(() => {
+      const agentSelect = screen.getByTestId(
+        "reclassify-agent-select",
+      ) as HTMLSelectElement;
+      const opts = Array.from(agentSelect.options).map((o) => o.value);
+      expect(opts).toEqual(expect.arrayContaining(icrm_agents));
+    });
+
+    // Now resolve the stale srx (B) fetch — it MUST NOT clobber the
+    // current agents list with srx_agents.
+    srxCall.resolve(srx_agents);
+    firstIcrm.resolve(icrm_agents);
+
+    // Give React a chance to (incorrectly) re-render if the alive-guard
+    // is broken.
+    await new Promise((r) => setTimeout(r, 10));
+
+    const agentSelect = screen.getByTestId(
+      "reclassify-agent-select",
+    ) as HTMLSelectElement;
+    const finalOpts = Array.from(agentSelect.options).map((o) => o.value);
+    // Final list must be A's (icrm) agents, NOT B's (srx).
+    expect(finalOpts).toEqual(expect.arrayContaining(icrm_agents));
+    expect(finalOpts).not.toEqual(expect.arrayContaining(srx_agents));
+  });
+
+  // ── Case 12 (Phase-21 Wave-1C): Use-suggestion mid-platform-fetch ────
+  // Curator fires a platform-onChange that triggers a slow agent fetch;
+  // while pending, the Use-suggestion handler fires for a different
+  // platform. The first (slow) fetch must be aborted so its late
+  // resolution can't clobber the Use-suggestion's agent list.
+  it("Use-suggestion mid-platform-fetch aborts the in-flight fetch", async () => {
+    mockGetOperationDetails.mockResolvedValue(baseDetails);
+    mockGetOperationSuggest.mockResolvedValue(happySuggest);
+
+    const calls: Array<{
+      platform: string;
+      signal?: AbortSignal;
+      resolve: (rows: string[]) => void;
+    }> = [];
+
+    mockListAdminAgents.mockImplementation(
+      (platform: string, signal?: AbortSignal) => {
+        // Mount call resolves immediately so steady state is reached.
+        if (calls.length === 0 && platform === "seller_panel") {
+          calls.push({ platform, signal, resolve: () => {} });
+          return Promise.resolve(["ndr_resolver", "shipment_ops"]);
+        }
+        return new Promise<string[]>((res) => {
+          calls.push({ platform, signal, resolve: res });
+        });
+      },
+    );
+
+    render(<ReclassifyPage />);
+    const platformSelect = (await screen.findByTestId(
+      "reclassify-platform-select",
+    )) as HTMLSelectElement;
+    await screen.findByTestId("reclassify-ai-use-button");
+    // Wait for platforms list to load so suggested platform is in the
+    // allowed array when Use-suggestion runs.
+    await waitFor(() => {
+      expect(mockListAdminPlatforms).toHaveBeenCalled();
+    });
+
+    // Toggle platform → fires a pending agent fetch for "srx".
+    fireEvent.change(platformSelect, { target: { value: "srx" } });
+    await waitFor(() => {
+      expect(calls.length).toBeGreaterThanOrEqual(2);
+    });
+    const srxCall = calls[1];
+    expect(srxCall.platform).toBe("srx");
+    expect(srxCall.signal).toBeInstanceOf(AbortSignal);
+    expect(srxCall.signal!.aborted).toBe(false);
+
+    // Click Use-suggestion → suggested platform is "icrm_platform"
+    // (per happySuggest). This must abort the srx fetch and fire a new
+    // one for icrm_platform.
+    fireEvent.click(screen.getByTestId("reclassify-ai-use-button"));
+
+    await waitFor(() => {
+      expect(calls.length).toBeGreaterThanOrEqual(3);
+    });
+    const icrmCall = calls[2];
+    expect(icrmCall.platform).toBe("icrm_platform");
+    expect(icrmCall.signal).toBeInstanceOf(AbortSignal);
+    expect(icrmCall.signal!.aborted).toBe(false);
+
+    // The srx fetch must now be aborted.
+    expect(srxCall.signal!.aborted).toBe(true);
+
+    // Resolve the icrm fetch first.
+    const icrm_agents = ["ndr_resolver", "icrm_agent"];
+    icrmCall.resolve(icrm_agents);
+
+    await waitFor(() => {
+      const agentSelect = screen.getByTestId(
+        "reclassify-agent-select",
+      ) as HTMLSelectElement;
+      const opts = Array.from(agentSelect.options).map((o) => o.value);
+      expect(opts).toEqual(expect.arrayContaining(icrm_agents));
+    });
+
+    // Now resolve the stale srx fetch — it MUST NOT clobber the
+    // Use-suggestion's agent list.
+    const srx_agents = ["srx_only_agent"];
+    srxCall.resolve(srx_agents);
+
+    // Give React a tick to (incorrectly) re-render if alive-guard is broken.
+    await new Promise((r) => setTimeout(r, 10));
+
+    const agentSelect = screen.getByTestId(
+      "reclassify-agent-select",
+    ) as HTMLSelectElement;
+    const finalOpts = Array.from(agentSelect.options).map((o) => o.value);
+    expect(finalOpts).toEqual(expect.arrayContaining(icrm_agents));
+    expect(finalOpts).not.toContain("srx_only_agent");
+  });
+
   // ── Case 10 (Phase-20): Use suggestion fills platform AND triggers agent re-fetch ──
   it("Use suggestion fills platformValue and re-fetches agents for the new platform", async () => {
     mockGetOperationDetails.mockResolvedValue(baseDetails);

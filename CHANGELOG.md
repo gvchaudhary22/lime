@@ -6,6 +6,35 @@ Format: [Semantic Versioning](https://semver.org/) — `v{milestone}.{phase}` al
 
 ---
 
+## [Unreleased] — feat/21-hardening-sweep (Phase 21)
+
+### Hardening — AbortController sweep on Reclassify page (Phase 21 — lime side)
+
+**Branch**: `gvchaudhary22/lime` → `feat/21-hardening-sweep` (cut from `feat/20-db-first-catalog`; rebases to main on PR merge — Phase 20 already merged)
+**aiplatformkb cross-link**: `BFRS-2/aiplatformkb` → `feat/21-hardening-sweep`
+**Phase**: M1-P21 — single Wave (1C) on the Lime side; remaining Phase-21 items are backend-only.
+**Tests**: 44 pass on the api-tools surface (was 37; +2 new race-condition cases + +5 from re-run of admin-proxy/drawer/tabs after the helper extraction).
+
+#### Why
+
+Phase 19 + 20 reviews surfaced TS20-M1: rapid platform-toggle on the Reclassify page could let a stale `listAdminAgents` resolution overwrite a fresher one, leaving the agent dropdown out of sync with the platform. Same vector on Use-suggestion when it fires while a platform-onChange fetch is still in flight.
+
+#### What shipped
+
+- **`src/lib/aiplatformkb-api.ts`** — `getJson<T>` extended with optional `{ signal?: AbortSignal }`; `listAdminAgents(platform?, signal?)` threads it through. Existing call sites unchanged (signal defaults to undefined → no behavior change for callers that don't opt in).
+- **`src/app/chat/api-tools/reclassify/[id]/page.tsx`** — new `agentsFetchAbort: useRef<AbortController | null>` + `refetchAgentsFor(platform, suggestedAgentToPreserve?)` helper. Both inline `.then(setAgents)` call sites (platform-onChange + Use-suggestion) replaced with the helper. Each call aborts the prior controller; only the latest fetch's resolution can call `setAgents`. Unmount cleanup aborts any in-flight fetch.
+- **2 new vitest cases** lock the contract: rapid platform-toggle (A → B → A) asserts each prior `signal.aborted === true` and final dropdown matches A; Use-suggestion-mid-platform-fetch confirms the in-flight fetch's signal flips to aborted.
+
+#### Cross-repo dependency
+
+This commit lands on a branch that also carries the aiplatformkb backend work (admin_curate.py split, validator alignment, real-MySQL CI, migration runbook). The Lime PR is independent — no shared diff, no shared CHANGELOG header — but ships in the same review cycle. See `BFRS-2/aiplatformkb#TBD` for the backend half.
+
+#### Out of scope (deferred Phase 22+)
+
+GitHub-error structured response parsing (Phase 22 — already planned) · Token rotation UI · Per-row aborts in the ApisTab list (only Reclassify page covered in P21).
+
+---
+
 ## [Unreleased] — feat/20-db-first-catalog (Phase 20)
 
 ### Feature — AI suggest panel adds Platform row + ApisTab dynamic platform filter (Phase 20)
