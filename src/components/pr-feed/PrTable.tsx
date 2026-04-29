@@ -114,6 +114,7 @@ export default function PrTable({ items, onRowClick, onClassified }: Props) {
               >
                 <PerRowSyncImpactsButton
                   prId={pr.id}
+                  serverImpactCount={pr.impact_counts.impacted}
                   onClassified={(count) => onClassified?.(pr.id, count)}
                 />
               </td>
