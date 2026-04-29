@@ -25,6 +25,11 @@ import type { GitHubErrorDetail } from "@/types/pr-sync";
 interface Props {
   prId: number;
   onClassified?: (impactCount: number) => void;
+  // Issue #53 — server-side classified impact count carried on the list
+  // payload (`pr.impact_counts.impacted`). When > 0 on first paint, the
+  // button hides immediately without waiting for a click → cached_hit
+  // round-trip. Local terminalImpactCount still wins after a fresh click.
+  serverImpactCount?: number;
 }
 
 // Mirror _formatGitHubErrorDetail in aiplatformkb-api.ts so the failed-job
@@ -40,6 +45,7 @@ function _formatJobErrorDetail(d: GitHubErrorDetail): string {
 export default function PerRowSyncImpactsButton({
   prId,
   onClassified,
+  serverImpactCount,
 }: Props) {
   const [activeJobId, setActiveJobId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -58,8 +64,12 @@ export default function PerRowSyncImpactsButton({
   // Phase-25 UX — once classify lands with impact_count > 0 the per-row
   // Impacts column takes over, so the button hides. Zero-impact rows
   // keep the button visible so the curator can re-trigger.
+  // Issue #53 — also hide when the list payload already reports
+  // server-side classified impacts > 0 (avoids a stale "Sync impacts"
+  // button on rows that were classified in a previous session).
   const hideAfterDone =
-    terminalImpactCount !== null && terminalImpactCount > 0;
+    (terminalImpactCount !== null && terminalImpactCount > 0) ||
+    (serverImpactCount !== undefined && serverImpactCount > 0);
 
   async function handle() {
     if (showSpinner) return;
