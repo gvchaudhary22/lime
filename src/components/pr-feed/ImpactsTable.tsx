@@ -91,7 +91,6 @@ function FlatImpactsTable({ items, onRowClick }: Props) {
           <th className="px-4 py-2 font-medium">Deprecation</th>
           <th className="px-4 py-2 font-medium">Confidence</th>
           <th className="px-4 py-2 font-medium">Changed file</th>
-          <th className="px-4 py-2 font-medium">KB file</th>
         </tr>
       </thead>
       <tbody>
@@ -147,9 +146,6 @@ function FlatImpactsTable({ items, onRowClick }: Props) {
                 <div className="truncate">
                   {it.changed_source_file || "—"}
                 </div>
-              </td>
-              <td className="max-w-xs px-4 py-3 font-mono text-[11px] text-slate-400">
-                <div className="truncate">{it.kb_file_path || "—"}</div>
               </td>
             </tr>
           );
