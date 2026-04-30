@@ -115,7 +115,7 @@ export default function ImpactDetailDrawer({ impact, onClose }: Props) {
               value={impact.deprecation_state || "—"}
             />
             <DetailKV label="Platform" value={impact.platform || "—"} />
-            <DetailKV label="Domain" value={impact.domain || "—"} />
+            <DetailKV label="Module" value={impact.domain || "—"} />
             <DetailKV
               label="LLM confidence"
               value={
