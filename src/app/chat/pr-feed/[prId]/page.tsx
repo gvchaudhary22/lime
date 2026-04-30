@@ -28,6 +28,7 @@ import ImpactDetailDrawer from "@/components/pr-feed/ImpactDetailDrawer";
 import Pagination from "@/components/pr-feed/Pagination";
 import RunPopulateButton from "@/components/pr-sync/RunPopulateButton";
 import ForceClassifyButton from "@/components/pr-sync/ForceClassifyButton";
+import ForcePopulateButton from "@/components/pr-sync/ForcePopulateButton";
 import PopulateProgressBanner from "@/components/pr-sync/PopulateProgressBanner";
 import { useSyncRowStatus } from "@/hooks/useSyncRowStatus";
 
@@ -263,6 +264,12 @@ function PrFeedDetailPageInner() {
                       prId={prIdNum}
                       classifyStatus={syncStatus?.classify_status ?? null}
                       populateStatus={syncStatus?.populate_status ?? null}
+                    />
+                    <ForcePopulateButton
+                      prId={prIdNum}
+                      classifyStatus={syncStatus?.classify_status ?? null}
+                      populateStatus={syncStatus?.populate_status ?? null}
+                      onCompleted={() => setRefreshKey((k) => k + 1)}
                     />
                   </div>
                 )}

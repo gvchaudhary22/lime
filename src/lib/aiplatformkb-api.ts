@@ -565,6 +565,21 @@ export function triggerPopulate(prId: number): Promise<PopulateJobAccepted> {
   );
 }
 
+// Phase 28 follow-up — bypass the populate-gate so existing endpoints
+// with only cosmetic risk_signals (scope_change, etc.) re-run too.
+// Use when curators need to refresh KB specs after a populate-side
+// improvement (new model, prompt change, populate code fix).
+export function triggerForcePopulate(
+  prId: number,
+): Promise<PopulateJobAccepted> {
+  return _runWithOpLabel("populate", () =>
+    jsonRequest<PopulateJobAccepted>(
+      "POST",
+      `/admin/pr-sync/prs/${prId}/populate?force=true`,
+    ),
+  );
+}
+
 // Phase-25 (Wave-3A) — poll the async populate job status.
 export function getPopulateJobStatus(
   prId: number,
@@ -628,6 +643,7 @@ export const aiplatformkbApi = {
   getClassifyJobStatus,
   previewPopulate,
   triggerPopulate,
+  triggerForcePopulate,
   // Phase-25 — async populate job status polling.
   getPopulateJobStatus,
   getPrSyncStatus,
