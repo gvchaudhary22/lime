@@ -143,9 +143,31 @@ function FlatImpactsTable({ items, onRowClick }: Props) {
                 <ConfidenceBar score={it.llm_confidence_score} />
               </td>
               <td className="max-w-xs px-4 py-3 font-mono text-[11px] text-slate-400">
-                <div className="truncate">
-                  {it.changed_source_file || "—"}
-                </div>
+                {(() => {
+                  const files =
+                    it.contributing_files && it.contributing_files.length > 0
+                      ? it.contributing_files
+                      : it.changed_source_file
+                        ? [it.changed_source_file]
+                        : [];
+                  if (files.length === 0) {
+                    return <div className="truncate">—</div>;
+                  }
+                  if (files.length === 1) {
+                    return <div className="truncate">{files[0]}</div>;
+                  }
+                  return (
+                    <div
+                      className="truncate"
+                      title={files.join("\n")}
+                    >
+                      {files[0]}{" "}
+                      <span className="rounded bg-slate-700/60 px-1.5 py-0.5 text-[10px] text-slate-300">
+                        +{files.length - 1}
+                      </span>
+                    </div>
+                  );
+                })()}
               </td>
             </tr>
           );

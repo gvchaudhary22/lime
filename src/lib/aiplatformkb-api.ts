@@ -520,6 +520,21 @@ export function triggerClassify(prId: number): Promise<ClassifyJobAccepted> {
   );
 }
 
+// Force-reclassify — bypasses the 24h cache + DELETEs prior api_impact_log
+// rows in a single transaction. Use when curators have shipped a classify
+// fix and want to refresh an already-classified PR (Phase 28 v2 cutover,
+// post-fix recovery, etc.).
+export function triggerForceClassify(
+  prId: number,
+): Promise<ClassifyJobAccepted> {
+  return _runWithOpLabel("classify", () =>
+    jsonRequest<ClassifyJobAccepted>(
+      "POST",
+      `/admin/pr-sync/prs/${prId}/classify?force=true`,
+    ),
+  );
+}
+
 // Phase-25 (Wave-3A) — poll the async classify job status.
 export function getClassifyJobStatus(
   prId: number,
@@ -608,6 +623,7 @@ export const aiplatformkbApi = {
   getDiscoverJobStatus,
   previewClassify,
   triggerClassify,
+  triggerForceClassify,
   // Phase-25 — async classify job status polling.
   getClassifyJobStatus,
   previewPopulate,

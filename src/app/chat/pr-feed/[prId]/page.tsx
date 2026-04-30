@@ -27,6 +27,7 @@ import ImpactsTable from "@/components/pr-feed/ImpactsTable";
 import ImpactDetailDrawer from "@/components/pr-feed/ImpactDetailDrawer";
 import Pagination from "@/components/pr-feed/Pagination";
 import RunPopulateButton from "@/components/pr-sync/RunPopulateButton";
+import ForceClassifyButton from "@/components/pr-sync/ForceClassifyButton";
 import PopulateProgressBanner from "@/components/pr-sync/PopulateProgressBanner";
 import { useSyncRowStatus } from "@/hooks/useSyncRowStatus";
 
@@ -138,6 +139,7 @@ function PrFeedDetailPageInner() {
   const debouncedFilters = useDebouncedValue(filters, 300);
 
   const [data, setData] = useState<PrDetailResponse | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [options, setOptions] = useState<FilterOptions | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -190,7 +192,7 @@ function PrFeedDetailPageInner() {
     return () => {
       cancelled = true;
     };
-  }, [prId, debouncedFilters, offset]);
+  }, [prId, debouncedFilters, offset, refreshKey]);
 
   useEffect(() => {
     const qs = filtersToQuery(debouncedFilters, offset);
@@ -251,11 +253,18 @@ function PrFeedDetailPageInner() {
                   <SyncRunSummary syncRun={data.sync_run} />
                 </div>
                 {prIdNum != null && (
-                  <RunPopulateButton
-                    prId={prIdNum}
-                    classifyStatus={syncStatus?.classify_status ?? null}
-                    populateStatus={syncStatus?.populate_status ?? null}
-                  />
+                  <div className="flex flex-col items-end gap-2">
+                    <ForceClassifyButton
+                      prId={prIdNum}
+                      classifyStatus={syncStatus?.classify_status ?? null}
+                      onCompleted={() => setRefreshKey((k) => k + 1)}
+                    />
+                    <RunPopulateButton
+                      prId={prIdNum}
+                      classifyStatus={syncStatus?.classify_status ?? null}
+                      populateStatus={syncStatus?.populate_status ?? null}
+                    />
+                  </div>
                 )}
               </div>
 

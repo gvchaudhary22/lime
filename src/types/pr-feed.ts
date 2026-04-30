@@ -85,6 +85,10 @@ export interface ImpactItem {
   impact_status: ImpactStatus;
   impact_type: ImpactType;
   changed_source_file: string | null;
+  // All files in this PR that contributed to this impacted path. Single-
+  // file impacts: length-1 list (same as changed_source_file). Multi-file
+  // impacts: 2+ entries. NULL on rows written before migration 011.
+  contributing_files: string[] | null;
   indirect_file_path: string | null;
   llm_model: string | null;
   llm_confidence_score: number | null;
