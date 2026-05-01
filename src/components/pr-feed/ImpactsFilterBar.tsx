@@ -187,7 +187,7 @@ export default function ImpactsFilterBar({
           options={options?.platforms || []}
         />
         <Select
-          label="Domain"
+          label="Module"
           value={value.domain}
           onChange={(v) => patch({ domain: v })}
           options={options?.domains || []}

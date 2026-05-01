@@ -83,6 +83,21 @@ export default function ImpactDetailDrawer({ impact, onClose }: Props) {
 
           <Section label="Source files">
             <DetailKV label="Changed" value={impact.changed_source_file} mono />
+            {impact.contributing_files &&
+              impact.contributing_files.length > 1 && (
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-slate-500">
+                    Contributing files ({impact.contributing_files.length})
+                  </div>
+                  <ul className="mt-1 flex flex-col gap-1 font-mono text-[11px] text-slate-300">
+                    {impact.contributing_files.map((f) => (
+                      <li key={f} className="truncate">
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             <DetailKV
               label="Indirect file"
               value={impact.indirect_file_path}
@@ -100,7 +115,7 @@ export default function ImpactDetailDrawer({ impact, onClose }: Props) {
               value={impact.deprecation_state || "—"}
             />
             <DetailKV label="Platform" value={impact.platform || "—"} />
-            <DetailKV label="Domain" value={impact.domain || "—"} />
+            <DetailKV label="Module" value={impact.domain || "—"} />
             <DetailKV
               label="LLM confidence"
               value={
