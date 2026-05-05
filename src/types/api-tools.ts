@@ -10,6 +10,35 @@ export interface AdminModule {
   module_name: string;
   display_name: string | null;
   display_order: number | null;
+  owner: string | null;
+}
+
+// Server validates against the same list in app/routers/admin_curate_pkg/modules.py.
+// Edit both when adding/removing an owner.
+export const MODULE_OWNERS = [
+  "Amrit",
+  "Ram pandey",
+  "Sashi singh",
+  "Manoj Sharma",
+  "Nishant gupta",
+  "Zaid",
+  "Bharat bhusan",
+  "Sunil Kumar",
+  "Ashish Kataria",
+  "Vineet",
+  "Ajit Verma",
+  "Rakesh Sharma",
+] as const;
+
+export type ModuleOwner = typeof MODULE_OWNERS[number];
+
+export interface SetModuleOwnerPayload {
+  owner: ModuleOwner | null;
+}
+
+export interface SetModuleOwnerResponse {
+  module_name: string;
+  owner: string | null;
 }
 
 export interface ReorderModulesPayload {
