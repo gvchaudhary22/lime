@@ -1,0 +1,397 @@
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3003
+  - Environments: .env.local
+
+ ✓ Starting...
+ ✓ Ready in 1373ms
+ ✓ Compiled /api/aiplatformkb/admin/[...path] in 225ms (56 modules)
+ GET /api/aiplatformkb/admin/modules 200 in 542ms
+ ○ Compiling / ...
+ ✓ Compiled / in 2.7s (557 modules)
+ ○ Compiling /chat/api-tools ...
+ ✓ Compiled /chat/api-tools in 571ms (675 modules)
+ GET /chat/api-tools 200 in 659ms
+ GET /api/aiplatformkb/admin/modules 200 in 56ms
+ GET /api/aiplatformkb/admin/modules 200 in 22ms
+ GET /api/aiplatformkb/admin/modules 200 in 28ms
+ GET /api/aiplatformkb/admin/modules 200 in 25ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 56ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 38ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 53ms
+ GET /api/aiplatformkb/admin/operations/1744/details 200 in 20ms
+ ✓ Compiled in 254ms (675 modules)
+ PATCH /api/aiplatformkb/admin/operations/796/eligibility 200 in 51ms
+ ✓ Compiled in 338ms (634 modules)
+ ✓ Compiled in 176ms (634 modules)
+ ✓ Compiled in 197ms (634 modules)
+ ✓ Compiled in 122ms (634 modules)
+ ✓ Compiled in 165ms (634 modules)
+ ✓ Compiled in 106ms (634 modules)
+ ✓ Compiled in 152ms (634 modules)
+ ✓ Compiled in 146ms (634 modules)
+ ✓ Compiled in 77ms (330 modules)
+ ✓ Compiled in 125ms (330 modules)
+ ✓ Compiled in 104ms (619 modules)
+ ✓ Compiled in 200ms (330 modules)
+ ✓ Compiled in 224ms (634 modules)
+ ✓ Compiled in 134ms (634 modules)
+ ✓ Compiled /api/aiplatformkb/admin/[...path] in 39ms (334 modules)
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 503 in 77ms
+ GET /api/aiplatformkb/admin/modules 503 in 79ms
+ GET /api/aiplatformkb/admin/modules 503 in 13ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 503 in 18ms
+ ✓ Compiled in 133ms (666 modules)
+ ✓ Compiled in 99ms (666 modules)
+ ✓ Compiled in 181ms (666 modules)
+ ✓ Compiled in 148ms (668 modules)
+ GET /chat/api-tools?tab=apis 200 in 69ms
+ ✓ Compiled /chat/api-tools/reclassify/[id] in 389ms (633 modules)
+ GET /chat/api-tools/reclassify/281 200 in 659ms
+ GET /chat/api-tools?tab=apis 200 in 389ms
+ GET /chat/api-tools?tab=apis 200 in 56ms
+ GET /chat/api-tools?tab=apis 200 in 24ms
+ ✓ Compiled /api/aiplatformkb/admin/[...path] in 267ms (336 modules)
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 503 in 345ms
+ GET /api/aiplatformkb/admin/modules 503 in 345ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 503 in 345ms
+ GET /api/aiplatformkb/admin/modules 503 in 346ms
+ GET /chat/api-tools?tab=apis 200 in 57ms
+ GET /api/aiplatformkb/admin/modules 503 in 14ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 503 in 16ms
+ GET /api/aiplatformkb/admin/modules 503 in 27ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 503 in 21ms
+ GET /chat/api-tools?tab=apis 200 in 19ms
+ GET /api/aiplatformkb/admin/modules 503 in 13ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 503 in 20ms
+ GET /api/aiplatformkb/admin/modules 503 in 19ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 503 in 15ms
+ ✓ Compiled in 278ms (672 modules)
+ ✓ Compiled in 144ms (642 modules)
+ ✓ Compiled /api/aiplatformkb/admin/[...path] in 68ms (336 modules)
+ GET /api/aiplatformkb/admin/modules 200 in 137ms
+ GET /api/aiplatformkb/admin/operations/281/details 200 in 26ms
+ GET /chat/api-tools?tab=apis 200 in 58ms
+ GET /api/aiplatformkb/admin/modules 200 in 45ms
+ GET /api/aiplatformkb/admin/modules 200 in 23ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 25ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 106ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 37ms
+ ✓ Compiled /chat/api-tools/reclassify/[id] in 165ms (342 modules)
+ GET /api/aiplatformkb/admin/operations/1712/details 200 in 56ms
+ GET /api/aiplatformkb/admin/operations/1712/suggest 200 in 78ms
+ GET /api/aiplatformkb/admin/operations/1712/details 200 in 33ms
+ GET /api/aiplatformkb/admin/operations/1712/suggest 200 in 29ms
+ GET /api/aiplatformkb/admin/modules?platform=seller_panel 200 in 45ms
+ GET /chat/api-tools?tab=apis 200 in 52ms
+ GET /api/aiplatformkb/admin/modules 200 in 50ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 66ms
+ GET /api/aiplatformkb/admin/modules 200 in 23ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 25ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 43ms
+ PATCH /api/aiplatformkb/admin/operations/1786/eligibility 200 in 33ms
+ ✓ Compiled in 270ms (648 modules)
+ ✓ Compiled in 152ms (648 modules)
+ ✓ Compiled in 228ms (648 modules)
+ ✓ Compiled in 134ms (648 modules)
+ ✓ Compiled in 137ms (648 modules)
+ ✓ Compiled in 122ms (648 modules)
+ ✓ Compiled in 191ms (648 modules)
+ ✓ Compiled in 179ms (648 modules)
+ ✓ Compiled in 135ms (648 modules)
+ ✓ Compiled in 137ms (648 modules)
+ ✓ Compiled in 189ms (648 modules)
+ ✓ Compiled in 283ms (648 modules)
+ ✓ Compiled in 188ms (648 modules)
+ ✓ Compiled /api/aiplatformkb/admin/[...path] in 138ms (342 modules)
+ GET /api/aiplatformkb/admin/platforms 200 in 225ms
+ GET /api/aiplatformkb/admin/agents?platform=seller_panel 200 in 35ms
+ GET /api/aiplatformkb/admin/operations/1712/details 200 in 26ms
+ GET /api/aiplatformkb/admin/platforms 200 in 41ms
+ GET /chat/api-tools?tab=apis 200 in 71ms
+ GET /chat/api-tools/reclassify/1712 200 in 29ms
+ GET /api/aiplatformkb/admin/modules 200 in 54ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 73ms
+ GET /api/aiplatformkb/admin/modules 200 in 20ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 28ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 40ms
+ GET /api/aiplatformkb/admin/operations/1793/details 200 in 28ms
+ GET /api/aiplatformkb/admin/operations/1702/details 200 in 64ms
+ GET /api/aiplatformkb/admin/operations/1702/suggest 500 in 89ms
+ GET /api/aiplatformkb/admin/operations/1702/details 200 in 40ms
+ GET /api/aiplatformkb/admin/operations/1702/suggest 502 in 16ms
+ GET /api/aiplatformkb/admin/modules?platform=seller_panel 200 in 37ms
+ GET /api/aiplatformkb/admin/modules 200 in 46ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 68ms
+ GET /api/aiplatformkb/admin/modules 200 in 26ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 26ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 45ms
+ ○ Compiling /chat/pr-feed ...
+ ✓ Compiled /chat/pr-feed in 637ms (714 modules)
+ ✓ Compiled in 335ms (672 modules)
+ ✓ Compiled in 173ms (672 modules)
+ ✓ Compiled in 159ms (672 modules)
+ ✓ Compiled in 182ms (672 modules)
+ ✓ Compiled in 390ms (672 modules)
+ ✓ Compiled in 266ms (672 modules)
+ ✓ Compiled in 238ms (672 modules)
+ ✓ Compiled in 323ms (672 modules)
+ ✓ Compiled in 189ms (672 modules)
+ ✓ Compiled /api/aiplatformkb/admin/[...path] in 109ms (342 modules)
+ GET /api/aiplatformkb/admin/modules 200 in 219ms
+ GET /api/aiplatformkb/admin/platforms 500 in 220ms
+ GET /api/aiplatformkb/admin/modules 502 in 10ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 232ms
+ GET /api/aiplatformkb/admin/platforms 500 in 28ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 30ms
+ GET /chat/api-tools?tab=apis 200 in 78ms
+ GET /api/aiplatformkb/admin/modules 200 in 40ms
+ GET /api/aiplatformkb/admin/platforms 500 in 46ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 63ms
+ GET /api/aiplatformkb/admin/modules 200 in 32ms
+ GET /api/aiplatformkb/admin/platforms 500 in 37ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 32ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 51ms
+ GET /api/aiplatformkb/admin/operations/1702/details 200 in 52ms
+ GET /api/aiplatformkb/admin/platforms 500 in 55ms
+ GET /api/aiplatformkb/admin/operations/1702/suggest 500 in 71ms
+ GET /api/aiplatformkb/admin/operations/1702/details 200 in 39ms
+ GET /api/aiplatformkb/admin/platforms 500 in 52ms
+ GET /api/aiplatformkb/admin/operations/1702/suggest 500 in 62ms
+ GET /api/aiplatformkb/admin/agents?platform=seller_panel 500 in 58ms
+ GET /api/aiplatformkb/admin/modules?platform=seller_panel 200 in 69ms
+ ✓ Compiled in 386ms (702 modules)
+ ✓ Compiled in 230ms (702 modules)
+ GET /api/aiplatformkb/admin/agents?platform=seller_panel 500 in 30ms
+ GET /api/aiplatformkb/admin/agents?platform=seller_panel 200 in 29ms
+ ✓ Compiled in 375ms (672 modules)
+ GET /chat/api-tools?tab=apis 200 in 93ms
+ GET /chat/api-tools/reclassify/1702 200 in 30ms
+ ✓ Compiled /chat/pr-feed in 252ms (339 modules)
+ GET /chat/pr-feed 200 in 352ms
+ ✓ Compiled /api/aiplatformkb/admin/[...path] in 65ms (369 modules)
+ POST /api/aiplatformkb/admin/pr-sync/discover 500 in 865ms
+ ✓ Compiled /_not-found in 200ms (717 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 259ms
+ POST /api/aiplatformkb/admin/pr-sync/discover 500 in 575ms
+ POST /api/aiplatformkb/admin/pr-sync/discover 500 in 666ms
+ ✓ Compiled in 417ms (700 modules)
+ ✓ Compiled in 223ms (700 modules)
+ ✓ Compiled in 278ms (700 modules)
+ ✓ Compiled in 221ms (700 modules)
+ ✓ Compiled /api/aiplatformkb/admin/[...path] in 108ms (369 modules)
+ GET /api/aiplatformkb/admin/operations/1702/details 200 in 343ms
+ GET /api/aiplatformkb/admin/platforms 200 in 343ms
+ GET /api/aiplatformkb/admin/operations/1702/suggest 200 in 357ms
+ GET /api/aiplatformkb/admin/operations/1702/details 200 in 39ms
+ GET /api/aiplatformkb/admin/platforms 200 in 39ms
+ GET /api/aiplatformkb/admin/operations/1702/suggest 200 in 35ms
+ GET /api/aiplatformkb/admin/agents?platform=seller_panel 200 in 41ms
+ GET /api/aiplatformkb/admin/modules?platform=seller_panel 200 in 52ms
+ ✓ Compiled in 338ms (730 modules)
+ ✓ Compiled in 0ms (369 modules)
+ ✓ Compiled in 0ms (369 modules)
+ ✓ Compiled in 1ms (369 modules)
+ GET /api/aiplatformkb/admin/operations/1702/suggest 200 in 314ms
+ GET /api/aiplatformkb/admin/platforms 200 in 337ms
+ GET /api/aiplatformkb/admin/operations/1702/details 200 in 346ms
+ GET /api/aiplatformkb/admin/operations/1702/suggest 200 in 104ms
+ GET /api/aiplatformkb/admin/operations/1702/details 200 in 97ms
+ GET /api/aiplatformkb/admin/platforms 200 in 100ms
+ GET /api/aiplatformkb/admin/agents?platform=seller_panel 200 in 29ms
+ GET /api/aiplatformkb/admin/modules?platform=seller_panel 200 in 40ms
+ ✓ Compiled in 242ms (730 modules)
+ ✓ Compiled in 227ms (730 modules)
+ GET /chat/pr-feed?org=shiprocket&repo=MultiChannel_API 200 in 91ms
+ ✓ Compiled /_not-found in 220ms (341 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 300ms
+ ✓ Compiled /api/aiplatformkb/admin/[...path] in 55ms (371 modules)
+ POST /api/aiplatformkb/admin/pr-sync/discover 500 in 759ms
+ POST /api/aiplatformkb/admin/pr-sync/discover 500 in 607ms
+ ✓ Compiled / in 148ms (350 modules)
+ GET / 200 in 236ms
+ ✓ Compiled /chat in 281ms (710 modules)
+ ✓ Compiled /api/aiplatformkb/admin/[...path] in 52ms (388 modules)
+ GET /api/aiplatformkb/admin/modules 200 in 121ms
+ GET /api/aiplatformkb/admin/modules 200 in 20ms
+ GET /api/aiplatformkb/admin/modules 200 in 26ms
+ GET /api/aiplatformkb/admin/platforms 200 in 32ms
+ GET /api/aiplatformkb/admin/modules 200 in 23ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 51ms
+ GET /api/aiplatformkb/admin/platforms 200 in 27ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 28ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 40ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Onboarding 200 in 23ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 22ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Onboarding 200 in 30ms
+ PATCH /api/aiplatformkb/admin/operations/1192/eligibility 200 in 26ms
+ GET /api/aiplatformkb/admin/operations/1797/details 200 in 27ms
+ PATCH /api/aiplatformkb/admin/operations/1797/eligibility 200 in 25ms
+ PATCH /api/aiplatformkb/admin/operations/1806/eligibility 200 in 22ms
+ PATCH /api/aiplatformkb/admin/operations/1807/eligibility 200 in 32ms
+ PATCH /api/aiplatformkb/admin/operations/1136/eligibility 200 in 23ms
+ PATCH /api/aiplatformkb/admin/operations/1764/eligibility 200 in 36ms
+ PATCH /api/aiplatformkb/admin/operations/1133/eligibility 200 in 27ms
+ PATCH /api/aiplatformkb/admin/operations/436/eligibility 200 in 24ms
+ PATCH /api/aiplatformkb/admin/operations/1093/eligibility 200 in 34ms
+ GET /api/aiplatformkb/admin/platforms 200 in 33ms
+ GET /api/aiplatformkb/admin/operations/683/details 200 in 48ms
+ GET /api/aiplatformkb/admin/operations/683/suggest 200 in 58ms
+ GET /api/aiplatformkb/admin/platforms 200 in 36ms
+ GET /api/aiplatformkb/admin/operations/683/details 200 in 28ms
+ GET /api/aiplatformkb/admin/operations/683/suggest 200 in 22ms
+ GET /api/aiplatformkb/admin/agents?platform=seller_panel 200 in 24ms
+ GET /api/aiplatformkb/admin/modules?platform=seller_panel 200 in 29ms
+ POST /api/aiplatformkb/admin/operations/683/classification 200 in 32ms
+ GET /api/aiplatformkb/admin/modules 200 in 30ms
+ GET /api/aiplatformkb/admin/platforms 200 in 37ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 53ms
+ GET /api/aiplatformkb/admin/modules 200 in 24ms
+ GET /api/aiplatformkb/admin/platforms 200 in 26ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 24ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 38ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Onboarding 200 in 21ms
+ PATCH /api/aiplatformkb/admin/operations/1872/eligibility 200 in 20ms
+ GET /api/aiplatformkb/admin/operations/917/details 200 in 35ms
+ GET /api/aiplatformkb/admin/platforms 200 in 47ms
+ GET /api/aiplatformkb/admin/operations/917/suggest 200 in 58ms
+ GET /api/aiplatformkb/admin/operations/917/details 200 in 32ms
+ GET /api/aiplatformkb/admin/platforms 200 in 27ms
+ GET /api/aiplatformkb/admin/operations/917/suggest 200 in 26ms
+ GET /api/aiplatformkb/admin/agents?platform=seller_panel 200 in 34ms
+ GET /api/aiplatformkb/admin/modules?platform=seller_panel 200 in 48ms
+ POST /api/aiplatformkb/admin/operations/917/classification 200 in 27ms
+ GET /api/aiplatformkb/admin/modules 200 in 29ms
+ GET /api/aiplatformkb/admin/platforms 200 in 35ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 50ms
+ GET /api/aiplatformkb/admin/modules 200 in 21ms
+ GET /api/aiplatformkb/admin/platforms 200 in 22ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 21ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 31ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Onboarding 200 in 19ms
+ GET /api/aiplatformkb/admin/operations/1872/details 200 in 29ms
+ GET /api/aiplatformkb/admin/platforms 200 in 35ms
+ GET /api/aiplatformkb/admin/operations/1872/suggest 200 in 47ms
+ GET /api/aiplatformkb/admin/operations/1872/details 200 in 25ms
+ GET /api/aiplatformkb/admin/platforms 200 in 29ms
+ GET /api/aiplatformkb/admin/operations/1872/suggest 200 in 28ms
+ GET /api/aiplatformkb/admin/agents?platform=seller_panel 200 in 27ms
+ GET /api/aiplatformkb/admin/modules?platform=seller_panel 200 in 35ms
+ POST /api/aiplatformkb/admin/operations/1872/classification 200 in 21ms
+ GET /api/aiplatformkb/admin/modules 200 in 23ms
+ GET /api/aiplatformkb/admin/platforms 200 in 29ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 38ms
+ GET /api/aiplatformkb/admin/modules 200 in 18ms
+ GET /api/aiplatformkb/admin/platforms 200 in 19ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 17ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 30ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Onboarding 200 in 24ms
+ PATCH /api/aiplatformkb/admin/operations/1741/eligibility 200 in 21ms
+ GET /api/aiplatformkb/admin/operations/1787/details 200 in 18ms
+ POST /api/aiplatformkb/admin/operations/reorder 200 in 61ms
+ GET /api/aiplatformkb/admin/operations/1909/details 200 in 34ms
+ GET /api/aiplatformkb/admin/platforms 200 in 57ms
+ GET /api/aiplatformkb/admin/operations/1909/suggest 200 in 66ms
+ GET /api/aiplatformkb/admin/operations/1909/details 200 in 34ms
+ GET /api/aiplatformkb/admin/platforms 200 in 28ms
+ GET /api/aiplatformkb/admin/operations/1909/suggest 200 in 27ms
+ GET /api/aiplatformkb/admin/agents?platform=seller_panel 200 in 33ms
+ GET /api/aiplatformkb/admin/modules?platform=seller_panel 200 in 36ms
+ POST /api/aiplatformkb/admin/operations/1909/classification 200 in 20ms
+ GET /api/aiplatformkb/admin/modules 200 in 24ms
+ GET /api/aiplatformkb/admin/platforms 200 in 31ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 43ms
+ GET /api/aiplatformkb/admin/modules 200 in 25ms
+ GET /api/aiplatformkb/admin/platforms 200 in 21ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 19ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 31ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=KYC 200 in 23ms
+ POST /api/aiplatformkb/admin/operations/reorder 200 in 80ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Onboarding 200 in 23ms
+ GET /api/aiplatformkb/admin/operations/1741/details 200 in 22ms
+ PATCH /api/aiplatformkb/admin/operations/1787/eligibility 200 in 23ms
+ PATCH /api/aiplatformkb/admin/operations/1787/eligibility 200 in 20ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 27ms
+ GET /api/aiplatformkb/admin/operations/788/details 200 in 39ms
+ GET /api/aiplatformkb/admin/platforms 200 in 43ms
+ GET /api/aiplatformkb/admin/operations/788/suggest 200 in 55ms
+ GET /api/aiplatformkb/admin/operations/788/details 200 in 28ms
+ GET /api/aiplatformkb/admin/platforms 200 in 34ms
+ GET /api/aiplatformkb/admin/operations/788/suggest 200 in 26ms
+ GET /api/aiplatformkb/admin/agents?platform=seller_panel 200 in 37ms
+ GET /api/aiplatformkb/admin/modules?platform=seller_panel 200 in 43ms
+ POST /api/aiplatformkb/admin/operations/788/classification 200 in 28ms
+ GET /api/aiplatformkb/admin/modules 200 in 25ms
+ GET /api/aiplatformkb/admin/platforms 200 in 37ms
+ GET /api/aiplatformkb/admin/modules 200 in 21ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 50ms
+ GET /api/aiplatformkb/admin/platforms 200 in 23ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 24ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 40ms
+ POST /api/aiplatformkb/admin/operations/reorder 200 in 76ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Onboarding 200 in 21ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 26ms
+ GET /api/aiplatformkb/admin/operations/1702/details 200 in 26ms
+ GET /api/aiplatformkb/admin/platforms 200 in 33ms
+ GET /api/aiplatformkb/admin/operations/1702/suggest 200 in 41ms
+ GET /api/aiplatformkb/admin/operations/1702/details 200 in 23ms
+ GET /api/aiplatformkb/admin/platforms 200 in 23ms
+ GET /api/aiplatformkb/admin/operations/1702/suggest 200 in 21ms
+ GET /api/aiplatformkb/admin/agents?platform=seller_panel 200 in 26ms
+ GET /api/aiplatformkb/admin/modules?platform=seller_panel 200 in 34ms
+ POST /api/aiplatformkb/admin/operations/1702/classification 200 in 28ms
+ GET /api/aiplatformkb/admin/modules 200 in 25ms
+ GET /api/aiplatformkb/admin/platforms 200 in 34ms
+ GET /api/aiplatformkb/admin/modules 200 in 23ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 49ms
+ GET /api/aiplatformkb/admin/platforms 200 in 20ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 19ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 34ms
+ GET /chat/api-tools?tab=apis&platform=seller_panel&module=Settings 200 in 54ms
+ GET /api/aiplatformkb/admin/modules 200 in 29ms
+ GET /api/aiplatformkb/admin/platforms 200 in 35ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 50ms
+ GET /api/aiplatformkb/admin/modules 200 in 30ms
+ GET /api/aiplatformkb/admin/platforms 200 in 36ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 28ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 54ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=KYC 200 in 18ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 30ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Onboarding 200 in 22ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 20ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Onboarding 200 in 23ms
+ POST /api/aiplatformkb/admin/pr-sync/discover 500 in 778ms
+ ✓ Compiled in 746ms (702 modules)
+ ✓ Compiled /api/aiplatformkb/admin/[...path] in 77ms (370 modules)
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 503 in 135ms
+ GET /api/aiplatformkb/admin/modules 503 in 140ms
+ GET /api/aiplatformkb/admin/modules 503 in 26ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 503 in 29ms
+ ✓ Compiled in 487ms (721 modules)
+ GET /api/aiplatformkb/admin/modules 200 in 213ms
+ GET /api/aiplatformkb/admin/platforms 200 in 213ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 239ms
+ GET /api/aiplatformkb/admin/modules 200 in 35ms
+ GET /api/aiplatformkb/admin/platforms 200 in 41ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 29ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 52ms
+ ✓ Compiled in 329ms (706 modules)
+ ✓ Compiled in 185ms (706 modules)
+ ✓ Compiled in 153ms (706 modules)
+ ✓ Compiled in 525ms (706 modules)
+ ✓ Compiled in 438ms (706 modules)
+ ✓ Compiled /api/aiplatformkb/admin/[...path] in 217ms (372 modules)
+ POST /api/aiplatformkb/admin/pr-sync/discover 422 in 880ms
+ GET /chat/api-tools?tab=apis&platform=seller_panel&module=Settings 200 in 104ms
+ GET /api/aiplatformkb/admin/platforms 200 in 70ms
+ GET /api/aiplatformkb/admin/modules 200 in 73ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 99ms
+ GET /api/aiplatformkb/admin/platforms 200 in 31ms
+ GET /api/aiplatformkb/admin/modules 200 in 30ms
+ GET /api/aiplatformkb/admin/operations?platform=seller_panel&module=Auth 200 in 28ms
+ GET /api/aiplatformkb/admin/operations/counts?platform=seller_panel 200 in 40ms
+ GET /chat/pr-feed?org=shiprocket&repo=MultiChannel_API 200 in 52ms
+ ✓ Compiled /_not-found in 369ms (344 modules)
+ GET /.well-known/appspecific/com.chrome.devtools.json 404 in 499ms
+ ✓ Compiled /api/aiplatformkb/admin/[...path] in 85ms (374 modules)
+ POST /api/aiplatformkb/admin/pr-sync/discover 422 in 835ms
+[?25h

@@ -175,6 +175,8 @@ import type {
   SetClassificationResponse,
   SetEligibilityPayload,
   SetEligibilityResponse,
+  SetModuleOwnerPayload,
+  SetModuleOwnerResponse,
   ToolMember,
 } from "@/types/api-tools";
 
@@ -291,6 +293,17 @@ export function reorderModules(
     "POST",
     `/admin/modules/reorder`,
     payload
+  );
+}
+
+export function setModuleOwner(
+  moduleName: string,
+  payload: SetModuleOwnerPayload,
+): Promise<SetModuleOwnerResponse> {
+  return jsonRequest<SetModuleOwnerResponse>(
+    "PATCH",
+    `/admin/modules/${encodeURIComponent(moduleName)}/owner`,
+    payload,
   );
 }
 
@@ -613,6 +626,7 @@ export const aiplatformkbApi = {
   listAdminPlatforms,
   listAdminAgents,
   reorderModules,
+  setModuleOwner,
   listAdminOperations,
   reorderOperations,
   setOperationEligibility,

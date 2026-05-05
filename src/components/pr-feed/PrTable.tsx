@@ -4,6 +4,7 @@ import { ExternalLink } from "lucide-react";
 import type { PrListItem, ProcessingStatus } from "@/types/pr-feed";
 import ImpactCountBadge from "./ImpactCountBadge";
 import PerRowSyncImpactsButton from "@/components/pr-sync/PerRowSyncImpactsButton";
+import RunClassifyAndPopulateButton from "@/components/pr-sync/RunClassifyAndPopulateButton";
 
 interface Props {
   items: PrListItem[];
@@ -112,11 +113,19 @@ export default function PrTable({ items, onRowClick, onClassified }: Props) {
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={(e) => e.stopPropagation()}
               >
-                <PerRowSyncImpactsButton
-                  prId={pr.id}
-                  serverImpactCount={pr.impact_counts.impacted}
-                  onClassified={(count) => onClassified?.(pr.id, count)}
-                />
+                <div className="flex flex-col items-start gap-2">
+                  <PerRowSyncImpactsButton
+                    prId={pr.id}
+                    serverImpactCount={pr.impact_counts.impacted}
+                    onClassified={(count) => onClassified?.(pr.id, count)}
+                  />
+                  <RunClassifyAndPopulateButton
+                    prId={pr.id}
+                    variant="row"
+                    alreadyDone={pr.processing_status === "done"}
+                    onCompleted={() => onClassified?.(pr.id, pr.impact_counts.impacted)}
+                  />
+                </div>
               </td>
               <td className="px-4 py-3 text-right">
                 {pr.pr_url && (
