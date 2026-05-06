@@ -64,13 +64,19 @@ describe("auth-less convention", () => {
 // ── Modules ──────────────────────────────────────────────────────────────
 
 describe("modules client", () => {
-  it("listAdminModules hits /admin/modules", async () => {
+  it("listAdminModules hits ai-platform /v1/admin/knowledgebase/modules", async () => {
+    // Phase-4 (ai-platform migration) — listAdminModules now routes
+    // through the /api/ai-platform proxy at the version-prefixed
+    // knowledgebase path. URL flipped from /admin/modules → the
+    // version-prefixed ai-platform path; method + result shape unchanged.
     mockFetch.mockResolvedValueOnce(
       okJson([{ module_name: "Auth", display_name: "Authentication", display_order: 10 }])
     );
     const result = await listAdminModules();
     const [url, init] = mockFetch.mock.calls[0];
-    expect(String(url)).toMatch(/\/admin\/modules$/);
+    expect(String(url)).toMatch(
+      /\/api\/ai-platform\/v1\/admin\/knowledgebase\/modules$/,
+    );
     expect((init as RequestInit).method).toBe("GET");
     expect(result[0].module_name).toBe("Auth");
   });
