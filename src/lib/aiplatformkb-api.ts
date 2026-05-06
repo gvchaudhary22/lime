@@ -100,41 +100,6 @@ async function getJson<T>(
   return body as T;
 }
 
-// Phase-4 (ai-platform migration) — sibling helper for endpoints that have
-// migrated from aiplatformkb to ai-platform. Hits the new server-side proxy
-// at /api/ai-platform/[...path], which forwards to AI_PLATFORM_URL with
-// AI_PLATFORM_ADMIN_TOKEN injected. Callers pass the version-prefixed path
-// verbatim (e.g. "/v1/admin/knowledgebase/platforms") — the proxy does NOT
-// re-add a /admin/ segment (D14). Same Accept-JSON convention and error
-// surface as getJson so call sites swap with a one-line change.
-async function getJsonAiPlatform<T>(
-  path: string,
-  options?: { signal?: AbortSignal },
-): Promise<T> {
-  const url = `/api/ai-platform${path}`;
-  const res = await fetch(url, {
-    method: "GET",
-    headers: { Accept: "application/json" },
-    signal: options?.signal,
-  });
-
-  let body: unknown = null;
-  try {
-    body = await res.json();
-  } catch {
-    body = null;
-  }
-
-  if (!res.ok) {
-    const detail =
-      (body && typeof body === "object" && "detail" in body
-        ? String((body as { detail: unknown }).detail)
-        : null) || `Request failed: ${res.status}`;
-    throw new AiplatformkbApiError(res.status, body, detail);
-  }
-  return body as T;
-}
-
 export function listPrs(
   filters: PrListFilters = {},
   pagination: Pagination = {}
@@ -293,26 +258,15 @@ export function listAdminModules(platform?: string): Promise<AdminModule[]> {
   // distinct modules from api_listing scoped to that platform (LEFT
   // JOIN module_descriptions for display metadata). Omit it for the
   // global, platform-agnostic view (current ModulesTab behaviour).
-  // Phase-4 (ai-platform migration) — GET /modules is now served by the
-  // ai-platform service at /v1/admin/knowledgebase/modules; routes
-  // through the new /api/ai-platform proxy. Reorder + owner PATCH below
-  // still hit aiplatformkb until those endpoints migrate.
   const qs = buildQuery({ platform });
-  return getJsonAiPlatform<AdminModule[]>(
-    `/v1/admin/knowledgebase/modules${qs}`,
-  );
+  return getJson<AdminModule[]>(`/admin/modules${qs}`);
 }
 
 // Phase-19 amendment — distinct platforms currently in api_listing.
 // Drives the Reclassify-page Platform dropdown; ground truth lives in
 // the rows themselves (no hardcoded enum to drift against).
-// Phase-4 (ai-platform migration) — moved to ai-platform's
-// /v1/admin/knowledgebase/platforms; routes through the new
-// /api/ai-platform proxy.
 export function listAdminPlatforms(): Promise<string[]> {
-  return getJsonAiPlatform<string[]>(
-    "/v1/admin/knowledgebase/platforms",
-  );
+  return getJson<string[]>("/admin/platforms");
 }
 
 // Phase-19 amendment — distinct agents in api_listing. Optional
