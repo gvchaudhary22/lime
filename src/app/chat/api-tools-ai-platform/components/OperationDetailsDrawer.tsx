@@ -151,7 +151,6 @@ export default function OperationDetailsDrawer({ apiId, onClose }: Props) {
                 <Row label="platform" value={op.platform} mono />
                 <Row label="module" value={op.module} mono />
                 <Row label="sub_module" value={op.sub_module} mono />
-                <Row label="agent" value={op.agent} />
                 <Row label="persona" value={op.persona} />
                 <Row label="intent" value={state.data.intent} />
                 <Row label="tool_name" value={state.data.tool_name} mono />
@@ -203,9 +202,6 @@ export default function OperationDetailsDrawer({ apiId, onClose }: Props) {
                   </span>
                 </div>
                 <Row label="module_curated" value={fmtBool(op.module_curated)} />
-                <Row label="agent_curated" value={fmtBool(op.agent_curated)} />
-                <Row label="persona_curated" value={fmtBool(op.persona_curated)} />
-                <Row label="platform_curated" value={fmtBool(op.platform_curated)} />
                 <Row
                   label="reject_description"
                   value={state.data.reject_description}

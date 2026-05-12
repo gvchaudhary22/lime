@@ -97,12 +97,8 @@ export interface AiPlatformOperation {
   path: string;
   display_order: number | null;
   ai_platform_eligible_api: boolean;
-  agent: string | null;
   persona: string | null;
   module_curated: boolean;
-  agent_curated: boolean;
-  persona_curated: boolean;
-  platform_curated: boolean;
   risk_level: string | null;
   read_write_type: string | null;
   hit_count_7d: number | null;
@@ -184,7 +180,7 @@ export function listOperations(params: {
   platform: string;
   module?: string;
 }): Promise<AiPlatformOperation[]> {
-  return postJson<{ operations: AiPlatformOperation[] }>("/kb/operations/list", {
+  return postJson<{ operations: AiPlatformOperation[] }>("/kb/api/list", {
     platform: params.platform,
     module: params.module || null,
   }).then((d) => d.operations);
