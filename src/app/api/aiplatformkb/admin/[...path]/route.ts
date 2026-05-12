@@ -18,7 +18,7 @@ import { NextRequest, NextResponse } from "next/server";
 const UPSTREAM_BASE =
   process.env.AIPLATFORMKB_URL ||
   process.env.NEXT_PUBLIC_AIPLATFORMKB_URL ||
-  "http://localhost:8000";
+  "http://localhost:9000";
 
 // Hop-by-hop and host-specific headers that must NOT be forwarded upstream.
 // `host` would mismatch upstream; `content-length` is recomputed by fetch

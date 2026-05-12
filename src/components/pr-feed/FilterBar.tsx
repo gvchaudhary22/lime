@@ -8,6 +8,9 @@ interface Props {
   options: FilterOptions | null;
   onChange: (next: PrListFilters) => void;
   onReset: () => void;
+  showAuthor?: boolean;
+  showBaseBranch?: boolean;
+  showSearch?: boolean;
 }
 
 const STATUS_VALUES: ProcessingStatus[] = [
@@ -109,7 +112,15 @@ function DateInput({
   );
 }
 
-export default function FilterBar({ value, options, onChange, onReset }: Props) {
+export default function FilterBar({
+  value,
+  options,
+  onChange,
+  onReset,
+  showAuthor = true,
+  showBaseBranch = true,
+  showSearch = true,
+}: Props) {
   const patch = (next: Partial<PrListFilters>) =>
     onChange({ ...value, ...next });
 
@@ -129,25 +140,31 @@ export default function FilterBar({ value, options, onChange, onReset }: Props) 
           onChange={(v) => patch({ repo: v })}
           options={options?.repos || []}
         />
-        <TextInput
-          label="Author"
-          value={value.author}
-          onChange={(v) => patch({ author: v })}
-          placeholder="username"
-        />
-        <Select
-          label="Base branch"
-          value={value.base_branch}
-          onChange={(v) => patch({ base_branch: v })}
-          options={options?.base_branches || []}
-        />
-        <TextInput
-          label="Search title"
-          value={value.q}
-          onChange={(v) => patch({ q: v })}
-          placeholder="title substring"
-          testId="filter-q"
-        />
+        {showAuthor && (
+          <TextInput
+            label="Author"
+            value={value.author}
+            onChange={(v) => patch({ author: v })}
+            placeholder="username"
+          />
+        )}
+        {showBaseBranch && (
+          <Select
+            label="Base branch"
+            value={value.base_branch}
+            onChange={(v) => patch({ base_branch: v })}
+            options={options?.base_branches || []}
+          />
+        )}
+        {showSearch && (
+          <TextInput
+            label="Search title"
+            value={value.q}
+            onChange={(v) => patch({ q: v })}
+            placeholder="title substring"
+            testId="filter-q"
+          />
+        )}
         <DateInput
           label="Merged after"
           value={value.merged_after}
